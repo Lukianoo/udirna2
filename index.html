@@ -1,91 +1,120 @@
 <!DOCTYPE html>
 <html lang="cs">
 <head>
-<meta charset="UTF-8" />
-<title>Teplotní dashboard – opraveno</title>
+<meta charset="UTF-8">
+<title>Udírna – přehledný dashboard</title>
 <style>
-  body{margin:0;background:#000;font-family:Arial;color:#fff}
-  .wrap{display:flex;justify-content:space-around;align-items:flex-start;padding:30px}
-  .card{background:#0a0a0a;border-radius:20px;padding:20px;box-shadow:0 0 40px #000}
-  svg{width:260px;height:260px}
-  .value{font-size:36px;text-anchor:middle;fill:white}
-  .unit{font-size:16px;fill:#ccc}
-  .label{text-align:center;margin-top:10px;color:#ccc}
-  input{width:100%;margin:6px 0}
+body{
+  margin:0;
+  background:#000;
+  color:#fff;
+  font-family:Arial,Helvetica,sans-serif;
+}
+.wrap{
+  display:flex;
+  gap:30px;
+  justify-content:center;
+  padding:30px;
+}
+.card{
+  background:#0b0b0b;
+  border-radius:20px;
+  padding:20px;
+  box-shadow:0 0 30px rgba(255,120,0,.3);
+  text-align:center;
+}
+svg{width:260px;height:260px}
+.label{margin-top:10px;color:#ccc}
+input{width:100%;margin:6px 0;padding:6px;border-radius:6px}
+button{padding:6px 10px;border-radius:6px}
 </style>
 </head>
 <body>
 
 <div class="wrap">
-  <div class="card"><svg id="g1"></svg><div class="label">Vlhkost</div></div>
-  <div class="card"><svg id="g2"></svg>
-    <div class="label">Hlavní teplota</div>
+  <div class="card">
+    <svg id="gHum"></svg>
+    <div class="label">Vlhkost (%)</div>
+  </div>
+
+  <div class="card">
+    <svg id="gMain"></svg>
+    <div class="label">Teplota udírny (°C)</div>
     <input id="minA" type="number" value="75">
     <input id="maxA" type="number" value="85">
-    <label><input type="checkbox" id="sound" checked> Zvuk</label>
-    <button onclick="unlockAudio();beep(400)">Test</button>
+    <label><input type="checkbox" id="sound" checked> Zvuk alarmu</label><br>
+    <button onclick="unlockAudio();beep(400)">Test zvuku</button>
   </div>
-  <div class="card"><svg id="g3"></svg><div class="label">Teplota venku</div></div>
+
+  <div class="card">
+    <svg id="gOut"></svg>
+    <div class="label">Teplota venku (°C)</div>
+  </div>
 </div>
 
 <script>
+/* ===== GAUGE ===== */
 class Gauge{
-  constructor(svg,{min,max,value,unit,active}){
-    this.svg=svg;this.min=min;this.max=max;this.value=value;this.unit=unit;this.active=active;
-    svg.setAttribute("viewBox","0 0 200 200");
+  constructor(svg,{min,max,unit,arc=false}){
+    this.svg=svg;this.min=min;this.max=max;this.unit=unit;this.arcEnabled=arc;
+    svg.setAttribute('viewBox','0 0 200 200');
     svg.innerHTML=`
       <circle cx="100" cy="100" r="90" fill="#111"/>
-      <g id="scale"></g>
-      ${active?'<path id="arc" stroke="#1e90ff" stroke-width="10" fill="none"/>':''}
-      <line id="needle" x1="100" y1="100" x2="100" y2="25" stroke="white" stroke-width="4"/>
-      <text x="100" y="120" class="value">${value.toFixed(1)}</text>
-      <text x="100" y="145" class="unit">${unit}</text>`;
-    this.scale=svg.querySelector('#scale');
-    this.arc=svg.querySelector('#arc');
-    this.needle=svg.querySelector('#needle');
+      <g class="scale"></g>
+      ${arc?'<path class="arc" stroke="#1e90ff" stroke-width="12" fill="none"/>':''}
+      <line class="needle" x1="100" y1="100" x2="100" y2="25" stroke="#fff" stroke-width="4"/>
+      <text class="val" x="100" y="120" font-size="36" text-anchor="middle">0</text>
+      <text x="100" y="145" font-size="16" fill="#aaa" text-anchor="middle">${unit}</text>`;
+
+    this.scale=svg.querySelector('.scale');
+    this.arc=svg.querySelector('.arc');
+    this.needle=svg.querySelector('.needle');
+    this.valText=svg.querySelector('.val');
+
     this.drawScale();
-    this.set(value);
+    this.set(min);
   }
-  polar(v,r){
-    const a=(v-this.min)/(this.max-this.min)*Math.PI-Math.PI/2;
-    return [100+r*Math.cos(a),100+r*Math.sin(a)];
-  }
+
+  angle(v){return (v-this.min)/(this.max-this.min)*180-90}
+  polar(v,r){const a=this.angle(v)*Math.PI/180;return[100+r*Math.cos(a),100+r*Math.sin(a)]}
+
   drawScale(){
     for(let i=0;i<=10;i++){
       const v=this.min+(this.max-this.min)/10*i;
       const [x1,y1]=this.polar(v,70);
       const [x2,y2]=this.polar(v,85);
-      this.scale.innerHTML+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#666"/>`;
+      this.scale.innerHTML+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#555"/>`;
     }
   }
+
   set(v){
-    this.value=v;
-    const ang=(v-this.min)/(this.max-this.min)*180-90;
-    this.needle.setAttribute('transform',`rotate(${ang} 100 100)`);
-    this.svg.querySelector('.value').textContent=v.toFixed(1);
+    v=Math.max(this.min,Math.min(this.max,v));
+    this.valText.textContent=v.toFixed(1);
+    this.needle.setAttribute('transform',`rotate(${this.angle(v)} 100 100)`);
     if(this.arc){
-      const a0=this.polar(this.min,80);
-      const a1=this.polar(v,80);
+      const [x0,y0]=this.polar(this.min,80);
+      const [x1,y1]=this.polar(v,80);
       const large=v>this.min+(this.max-this.min)/2?1:0;
-      this.arc.setAttribute('d',`M ${a0[0]} ${a0[1]} A 80 80 0 ${large} 1 ${a1[0]} ${a1[1]}`);
+      this.arc.setAttribute('d',`M ${x0} ${y0} A 80 80 0 ${large} 1 ${x1} ${y1}`);
     }
   }
 }
 
-/* AUDIO */
+/* ===== AUDIO ===== */
 let audioCtx=null;
 function unlockAudio(){ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }
 function beep(f){ if(!audioCtx||!sound.checked)return; const o=audioCtx.createOscillator();const g=audioCtx.createGain();o.frequency.value=f;o.connect(g);g.connect(audioCtx.destination);g.gain.setValueAtTime(0.2,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.2);o.start();o.stop(audioCtx.currentTime+0.2);} 
 
-/* INIT */
-const g1=new Gauge(g1svg=document.getElementById('g1'),{min:0,max:100,value:24,unit:'%',active:false});
-const g2=new Gauge(g2svg=document.getElementById('g2'),{min:0,max:120,value:17.8,unit:'°C',active:true});
-const g3=new Gauge(g3svg=document.getElementById('g3'),{min:-30,max:50,value:3,unit:'°C',active:false});
+/* ===== INIT ===== */
+const hum=new Gauge(gHum,{min:0,max:100,unit:'%'});
+const main=new Gauge(gMain,{min:0,max:120,unit:'°C',arc:true});
+const out=new Gauge(gOut,{min:-30,max:50,unit:'°C'});
 
+let t=18;
 setInterval(()=>{
-  let v=g2.value+(Math.random()-0.5);
-  g2.set(v);
-  if(v>maxA.value||v<minA.value)beep(800);
+  t+=Math.random()*2-1;
+  main.set(t);
+  if(t<minA.value||t>maxA.value)beep(800);
 },2000);
 </script>
 </body>
