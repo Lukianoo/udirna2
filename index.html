@@ -10,20 +10,25 @@
   <script src="https://cdn.jsdelivr.net/npm/justgage@1.4.0/justgage.min.js"></script>
 
   <style>
-    body { margin: 0; font-family: Arial, sans-serif; background: #111; color: #fff; }
-    h1.header { display: flex; justify-content: space-between; align-items: center; margin: 10px 20px 10px; }
-    #clock { font-size: 18px; opacity: 0.8; }
-    #temp-status { text-align: center; font-size: 32px; font-weight: bold; margin-bottom: 10px; }
+    body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #121212; color: #fff; }
+    h1.header { display: flex; justify-content: space-between; align-items: center; margin: 20px 40px; font-size: 36px; letter-spacing: 1px; }
+    #clock { font-size: 20px; opacity: 0.8; }
+    #temp-status { text-align: center; font-size: 36px; font-weight: bold; margin: 0 0 20px 0; padding: 10px 0; border-radius: 10px; background: linear-gradient(90deg, #222, #333); box-shadow: 0 0 20px rgba(255,255,255,0.1); }
     .status-low { color: #3399ff; }
     .status-ok { color: #33cc33; }
     .status-high { color: #ff3333; }
-    .panel { display: grid; grid-template-columns: 0.8fr 1.6fr 0.8fr; gap: 20px; padding: 20px; max-width: 1200px; margin: auto; align-items: center; }
-    .gauge { background: #1c1c1c; border-radius: 20px; padding: 10px; box-shadow: 0 0 20px rgba(255,255,255,0.05); text-align: center; }
-    .gauge.big { transform: scale(1.15); }
-    .gauge.small { transform: scale(0.9); }
-    .label { margin-top: 6px; font-size: 14px; opacity: 0.8; }
-    .gauge-title { font-size: 32px; font-weight: bold; margin-bottom: 10px; text-align: center; color: #ffffff; }
-    footer { text-align: center; font-size: 12px; opacity: 0.6; margin: 10px 0 20px; }
+    .panel { display: grid; grid-template-columns: 1fr 1.5fr 1fr; gap: 30px; padding: 20px 40px; max-width: 1400px; margin: auto; align-items: start; }
+    .gauge { background: #1e1e1e; border-radius: 25px; padding: 15px; box-shadow: 0 4px 30px rgba(0,0,0,0.5); text-align: center; transition: transform 0.2s, box-shadow 0.2s; }
+    .gauge:hover { transform: scale(1.02); box-shadow: 0 8px 40px rgba(255,255,255,0.2); }
+    .gauge.big { transform: scale(1.2); }
+    .gauge.small { transform: scale(0.95); }
+    .label { margin-top: 8px; font-size: 16px; opacity: 0.85; color: #ddd; }
+    .gauge-title { font-size: 32px; font-weight: bold; margin-bottom: 15px; text-align: center; color: #ffffff; }
+    .alarm-settings { text-align: center; margin: 30px 0; }
+    .alarm-settings input, .alarm-settings select { width: 60px; font-size: 16px; padding: 5px; margin: 0 10px; border-radius: 5px; border: none; text-align: center; }
+    .alarm-settings button { font-size: 16px; padding: 5px 15px; margin-left: 10px; border-radius: 5px; border: none; background-color: #33cc33; color: #fff; cursor: pointer; }
+    .alarm-settings select { background-color: #444; color: #fff; }
+    footer { text-align: center; font-size: 14px; opacity: 0.6; margin: 20px 0 30px; }
   </style>
 </head>
 <body>
@@ -33,20 +38,38 @@
 
 <div class="panel">
   <div class="gauge small">
-    <div id="gauge-left" style="width:100%; height:220px;"></div>
+    <div id="gauge-left" style="width:100%; height:240px;"></div>
     <div class="label">WiFi signál [%]</div>
   </div>
 
   <div class="gauge big">
     <div class="gauge-title">Teplota v udírně</div>
-    <div id="gauge-center" style="width:100%; height:260px;"></div>
+    <div id="gauge-center" style="width:100%; height:300px;"></div>
     <div class="label">[°C]</div>
   </div>
 
   <div class="gauge small">
-    <div id="gauge-right" style="width:100%; height:220px;"></div>
+    <div id="gauge-right" style="width:100%; height:240px;"></div>
     <div class="label">Venkovní teplota [°C]</div>
   </div>
+</div>
+
+<div class="alarm-settings">
+  <span>Zvukový alarm: </span>
+  Min: <input type="number" id="alarm-min" value="0"> °C
+  <select id="alarm-sound-min">
+    <option value="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg">Alarm 1</option>
+    <option value="https://actions.google.com/sounds/v1/alarms/beep_short.ogg">Alarm 2</option>
+    <option value="https://actions.google.com/sounds/v1/alarms/medium_bell_ring.ogg">Alarm 3</option>
+  </select>
+  Max: <input type="number" id="alarm-max" value="120"> °C
+  <select id="alarm-sound-max">
+    <option value="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg">Alarm 1</option>
+    <option value="https://actions.google.com/sounds/v1/alarms/beep_short.ogg">Alarm 2</option>
+    <option value="https://actions.google.com/sounds/v1/alarms/medium_bell_ring.ogg">Alarm 3</option>
+  </select>
+  <button onclick="saveAlarmSettings()">Uložit</button>
+  <button onclick="testAlarm()">Test</button>
 </div>
 
 <footer>
@@ -60,63 +83,35 @@
   const FIELD_CENTER = 1;
   const FIELD_RIGHT = 4;
 
-  const gaugeLeft = new JustGage({
-    id: "gauge-left",
-    value: 0,
-    min: 0,
-    max: 100,
-    title: "WiFi",
-    label: "%",
-    levelColors: ["#ff3333", "#ffcc00", "#33cc33"],
-    valueFontColor: "#ffffff",
-    valueFontSize: 60,
-    customSectors: [ { color: "#ff3333", lo: 0, hi: 30 }, { color: "#ffcc00", lo: 30, hi: 60 }, { color: "#33cc33", lo: 60, hi: 100 } ]
-  });
+  const gaugeLeft = new JustGage({ id: "gauge-left", value: 0, min: 0, max: 100, title: "WiFi", label: "%", levelColors: ["#ff3333", "#ffcc00", "#33cc33"], valueFontColor: "#ffffff", valueFontSize: 70 });
+  const gaugeCenter = new JustGage({ id: "gauge-center", value: 0, min: 0, max: 120, title: "Udírna", label: "°C", levelColors: ["#3399ff", "#33cc33", "#ff3333"], valueFontColor: "#ffffff", valueFontSize: 80 });
+  const gaugeRight = new JustGage({ id: "gauge-right", value: 0, min: -30, max: 40, title: "Venek", label: "°C", levelColors: ["#3399ff", "#33cc33", "#ff9933"], valueFontColor: "#ffffff", valueFontSize: 70 });
 
-  const gaugeCenter = new JustGage({
-    id: "gauge-center",
-    value: 0,
-    min: 0,
-    max: 120,
-    title: "Udírna",
-    label: "°C",
-    levelColors: ["#3399ff", "#33cc33", "#ff3333"],
-    valueFontColor: "#ffffff",
-    valueFontSize: 70,
-    customSectors: [ { color: "#3399ff", lo: 0, hi: 75 }, { color: "#33cc33", lo: 75, hi: 85 }, { color: "#ff3333", lo: 85, hi: 120 } ]
-  });
+  let alarmMin = parseFloat(document.getElementById('alarm-min').value);
+  let alarmMax = parseFloat(document.getElementById('alarm-max').value);
+  let alarmSoundMin = document.getElementById('alarm-sound-min').value;
+  let alarmSoundMax = document.getElementById('alarm-sound-max').value;
 
-  const gaugeRight = new JustGage({
-    id: "gauge-right",
-    value: 0,
-    min: -30,
-    max: 40,
-    title: "Venek",
-    label: "°C",
-    levelColors: ["#3399ff", "#33cc33", "#ff9933"],
-    valueFontColor: "#ffffff",
-    valueFontSize: 60,
-    customSectors: [ { color: "#3399ff", lo: -30, hi: 0 }, { color: "#33cc33", lo: 0, hi: 25 }, { color: "#ff9933", lo: 25, hi: 40 } ]
-  });
+  function saveAlarmSettings() {
+    alarmMin = parseFloat(document.getElementById('alarm-min').value);
+    alarmMax = parseFloat(document.getElementById('alarm-max').value);
+    alarmSoundMin = document.getElementById('alarm-sound-min').value;
+    alarmSoundMax = document.getElementById('alarm-sound-max').value;
+    alert(`Alarm nastaven: Min ${alarmMin}°C, Max ${alarmMax}°C`);
+  }
 
-  let lastCenterValue = 0;
-  let lastLeftValue = 0;
-  let lastRightValue = 0;
+  function testAlarm() {
+    playAlarm(alarmSoundMin);
+    setTimeout(() => playAlarm(alarmSoundMax), 1000);
+  }
 
   async function loadThingSpeak() {
     try {
       let res = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`);
       let data = await res.json();
 
-      const leftValue = parseFloat(data[`field${FIELD_LEFT}`]);
-      gaugeLeft.refresh(leftValue);
-      if (Math.abs(leftValue - lastLeftValue) > 5) flashGauge('gauge-left');
-      lastLeftValue = leftValue;
-
       const centerValue = parseFloat(data[`field${FIELD_CENTER}`]);
       gaugeCenter.refresh(centerValue);
-      if (Math.abs(centerValue - lastCenterValue) > 2) flashGauge('gauge-center');
-      lastCenterValue = centerValue;
 
       const statusEl = document.getElementById('temp-status');
       statusEl.className = '';
@@ -124,33 +119,17 @@
       else if (centerValue <= 85) { statusEl.innerText = 'Ideální teplota'; statusEl.classList.add('status-ok'); }
       else { statusEl.innerText = 'Pozor vysoká teplota'; statusEl.classList.add('status-high'); }
 
-      res = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`);
-      data = await res.json();
-      const rightValue = parseFloat(data[`field${FIELD_RIGHT}`]);
-      gaugeRight.refresh(rightValue);
-      if (Math.abs(rightValue - lastRightValue) > 2) flashGauge('gauge-right');
-      lastRightValue = rightValue;
+      if (centerValue <= alarmMin) { playAlarm(alarmSoundMin); }
+      else if (centerValue >= alarmMax) { playAlarm(alarmSoundMax); }
 
-      if (data.created_at) {
-        const d = new Date(data.created_at);
-        document.getElementById('update-time').innerText = 'Poslední aktualizace: ' + d.toLocaleString('cs-CZ');
-      }
-
-    } catch (e) {
+    } catch(e) {
       console.error('Chyba při čtení ThingSpeak', e);
     }
   }
 
-  function flashGauge(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.style.transition = 'transform 0.2s, box-shadow 0.2s';
-    el.style.transform = 'scale(1.05)';
-    el.style.boxShadow = '0 0 25px #ffffff';
-    setTimeout(() => {
-      el.style.transform = 'scale(1)';
-      el.style.boxShadow = '0 0 12px #ffffff';
-    }, 200);
+  function playAlarm(sound) {
+    const audio = new Audio(sound);
+    audio.play();
   }
 
   loadThingSpeak();
