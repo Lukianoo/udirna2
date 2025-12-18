@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Udírna – Řídicí panel</title>
+
 <style>
 body{
   background:radial-gradient(circle at top,#2a2a2a,#000);
@@ -39,7 +40,7 @@ body{
   box-shadow:0 0 30px rgba(255,120,0,.35);
   padding:15px;
   text-align:center;
-  flex:1 1 300px; 
+  flex:1 1 300px;
   max-width:520px;
   display:flex;
   flex-direction:column;
@@ -64,17 +65,22 @@ select,button,input{
 hr{border:1px solid #333;margin:10px 0;}
 </style>
 </head>
+
 <body>
+
 <div id="fs_btn_container">
   <button id="fs_btn">Fullscreen</button>
 </div>
+
 <div id="container">
+
   <!-- WIFI -->
   <div class="box">
     <div id="rssi_gauge" class="gauge"></div>
     <div id="signal_state" class="state"></div>
     <div id="wifi_time" class="time"></div>
   </div>
+
   <!-- HLAVNÍ TEPLOTA -->
   <div class="box">
     <div id="temp_gauge" class="gauge big"></div>
@@ -83,23 +89,29 @@ hr{border:1px solid #333;margin:10px 0;}
     <div class="recommend" id="recommend"></div>
     <div class="state" id="meat_state"></div>
     <hr>
+
     <div>Minimální teplota alarm (°C)</div>
     <input type="number" id="temp_min" value="75">
+
     <div class="sound-controls">
       <label><input type="checkbox" id="sound_enable"> 🔔 Pípnutí</label>
       <button onclick="testSound(400)">Test</button>
     </div>
+
     <div>Maximální teplota alarm (°C)</div>
     <input type="number" id="temp_max" value="85">
+
     <div class="sound-controls">
       <button onclick="testSound(600)">Test</button>
     </div>
   </div>
+
   <!-- VENKOVNÍ TEPLOTA -->
   <div class="box">
     <div id="temp2_gauge" class="gauge"></div>
     <div class="state">🌡️ Teplota venku</div>
   </div>
+
 </div>
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
@@ -108,12 +120,13 @@ hr{border:1px solid #333;margin:10px 0;}
 class NiceGauge{
   constructor(el,min,max,unit,zones=[]){
     this.min=min; this.max=max; this.unit=unit;
-    this.zones=zones; 
+    this.zones=zones;
 
-    el.innerHTML = `<svg viewBox="0 0 200 200">
+    el.innerHTML = `
+    <svg viewBox="0 0 200 200">
       <circle cx="100" cy="100" r="85" fill="#111"/>
       <g id="scale"></g>
-      <path id="arc" fill="none" stroke="#0f0" stroke-width="14" stroke-linecap="round"/>
+      <path id="arc" fill="none" stroke-width="14" stroke-linecap="round"/>
       <line id="needle" x1="100" y1="100" x2="100" y2="25" stroke="#fff" stroke-width="4"/>
       <text id="value" x="100" y="128" fill="#fff" font-size="30" text-anchor="middle">0</text>
       <text x="100" y="152" fill="#aaa" font-size="16" text-anchor="middle">${unit}</text>
@@ -127,12 +140,11 @@ class NiceGauge{
 
   drawScale(){
     for(let v=this.min; v<=this.max; v+=10){
-      let ratio=(v-this.min)/(this.max-this.min);
-      let ang=(ratio*180-90)*Math.PI/180;
-      let r1=72, r2=82, rt=60;
-      let x1=100+r1*Math.sin(ang), y1=100-r1*Math.cos(ang);
-      let x2=100+r2*Math.sin(ang), y2=100-r2*Math.cos(ang);
-      let xt=100+rt*Math.sin(ang), yt=100-rt*Math.cos(ang)+4;
+      let r=(v-this.min)/(this.max-this.min);
+      let a=(r*180-90)*Math.PI/180;
+      let x1=100+72*Math.sin(a), y1=100-72*Math.cos(a);
+      let x2=100+82*Math.sin(a), y2=100-82*Math.cos(a);
+      let xt=100+60*Math.sin(a), yt=100-60*Math.cos(a)+4;
       this.scale.innerHTML+=`
         <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#666" stroke-width="2"/>
         <text x="${xt}" y="${yt}" fill="#aaa" font-size="10" text-anchor="middle">${v}</text>`;
@@ -140,125 +152,81 @@ class NiceGauge{
   }
 
   set(v){
-    v=Math.max(this.min, Math.min(this.max,v));
+    v=Math.max(this.min,Math.min(this.max,v));
     this.valueText.textContent=v.toFixed(1);
     let ang=(v-this.min)/(this.max-this.min)*180-90;
     this.needle.setAttribute("transform",`rotate(${ang} 100 100)`);
 
-    // barevný pruh jen pokud jsou definované zóny
     if(this.zones.length){
-      let color="#0f0";
+      let color="#007bff";
       for(const z of this.zones){
-        if(v >= z.from && v <= z.to) color=z.color;
+        if(v>=z.from && v<=z.to) color=z.color;
       }
-      this.arc.setAttribute("stroke", color);
-
-      let ratio=(v-this.min)/(this.max-this.min)*Math.PI;
-      let x=100+85*Math.sin(ratio), y=100-85*Math.cos(ratio);
+      this.arc.setAttribute("stroke",color);
+      let r=(v-this.min)/(this.max-this.min)*Math.PI;
+      let x=100+85*Math.sin(r), y=100-85*Math.cos(r);
       this.arc.setAttribute("d",`M 15 100 A 85 85 0 0 1 ${x} ${y}`);
-    } else {
-      this.arc.setAttribute("stroke","none");
     }
   }
 }
 
-/* ===== ALARM & SOUND ===== */
-let audioCtx=null, lastTemp=null;
-let soundEnabled = localStorage.getItem("soundEnabled")==="true";
-let tempMin = parseFloat(localStorage.getItem("tempMin")) || 75;
-let tempMax = parseFloat(localStorage.getItem("tempMax")) || 85;
+/* ===== ALARM ===== */
+let audioCtx=null,lastTemp=null;
+let soundEnabled=localStorage.getItem("soundEnabled")==="true";
+let tempMin=parseFloat(localStorage.getItem("tempMin"))||75;
+let tempMax=parseFloat(localStorage.getItem("tempMax"))||85;
 
 document.addEventListener("DOMContentLoaded",()=>{
   sound_enable.checked=soundEnabled;
   temp_min.value=tempMin;
   temp_max.value=tempMax;
-  sound_enable.onchange=()=>{ soundEnabled=sound_enable.checked; localStorage.setItem("soundEnabled",soundEnabled);}
-  temp_min.onchange=()=>{ tempMin=parseFloat(temp_min.value); localStorage.setItem("tempMin",tempMin);}
-  temp_max.onchange=()=>{ tempMax=parseFloat(temp_max.value); localStorage.setItem("tempMax",tempMax);}
+  sound_enable.onchange=()=>{soundEnabled=sound_enable.checked;localStorage.setItem("soundEnabled",soundEnabled);}
+  temp_min.onchange=()=>{tempMin=parseFloat(temp_min.value);localStorage.setItem("tempMin",tempMin);}
+  temp_max.onchange=()=>{tempMax=parseFloat(temp_max.value);localStorage.setItem("tempMax",tempMax);}
 });
 
-function beep(freq){
+function beep(f){
   if(!soundEnabled) return;
   if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
   const o=audioCtx.createOscillator();
   const g=audioCtx.createGain();
-  o.frequency.value=freq; o.type="sine";
+  o.frequency.value=f;
   o.connect(g); g.connect(audioCtx.destination);
   g.gain.setValueAtTime(0.2,audioCtx.currentTime);
   g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.2);
   o.start(); o.stop(audioCtx.currentTime+0.2);
 }
-function testSound(freq){ beep(freq); }
+function testSound(f){beep(f);}
 
-function updateSmokeState(t){
-  if(lastTemp!==null){
-    if(lastTemp>=tempMin && t<tempMin) beep(400);
-    if(lastTemp<=tempMax && t>tempMax) beep(600);
-  }
-  lastTemp=t;
-
-  if(t<30){ smoke_state.innerHTML="❄️ Udírna studená"; smoke_state.className="state ok"; }
-  else if(t<60){ smoke_state.innerHTML="💨 Studené uzení"; smoke_state.className="state ok"; }
-  else if(t<tempMin){ smoke_state.innerHTML="🔥 Ideální teplota"; smoke_state.className="state ok"; }
-  else if(t>tempMax){ smoke_state.innerHTML="⚠️ PŘEHŘÁTÍ!"; smoke_state.className="state bad"; }
-  else{ smoke_state.innerHTML="🔥 Ideální teplota"; smoke_state.className="state ok"; }
-
-  meat_state.innerHTML=t<40?"🥩 Osychání":t<55?"🍖 Kouř":t<70?"🥓 Ideální":"⚠️ Tuk se vypéká";
-  recommend.innerHTML="⏳ Bůček 6–8 h | Špek 4–6 h";
-}
-
-/* ===== THINGSPEAK ===== */
-const mainChannel=260804;
-const mainKey='JXC3WDDU4WH71K93';
-const temp2Channel=231269;
-
+/* ===== INIT ===== */
 let tempGauge,rssiGauge,temp2Gauge;
-let smokingStart=null;
-let smokingActive=false;
 
 function init(){
-  // barevný pruh jen na hlavní teplotu
   tempGauge=new NiceGauge(temp_gauge,0,120,"°C",[
-    {from:0,to:75,color:"#007bff"},
-    {from:75,to:85,color:"#0f0"},
-    {from:85,to:120,color:"#f00"}
+    {from:0,to:85,color:"#007bff"},
+    {from:85,to:120,color:"#ff3333"}
   ]);
 
-  // RSSI a venkovní teplota bez pruhu
   rssiGauge=new NiceGauge(rssi_gauge,0,100,"%");
   temp2Gauge=new NiceGauge(temp2_gauge,-30,50,"°C");
 
   loadData();
   setInterval(loadData,15000);
-  setInterval(updateClock,1000);
-  setInterval(updateSmokingTime,1000);
+  setInterval(()=>wifi_time.innerHTML="🕒 Čas "+new Date().toLocaleTimeString(),1000);
 }
 
 function loadData(){
-  $.getJSON(`https://api.thingspeak.com/channels/${mainChannel}/feed/last.json?api_key=${mainKey}`,d=>{
-    const t=parseFloat(d.field1);
-    const s=parseFloat(d.field2);
-    if(!isNaN(t)){ tempGauge.set(t); updateSmokeState(t); checkSmokingStart(t);}
-    if(!isNaN(s)){ rssiGauge.set(s); signal_state.innerHTML=(s>70?"📶 Výborný signál":s>40?"📡 Dobrý signál":"⚠️ Slabý signál"); }
+  $.getJSON("https://api.thingspeak.com/channels/260804/feed/last.json?api_key=JXC3WDDU4WH71K93",d=>{
+    let t=parseFloat(d.field1);
+    let s=parseFloat(d.field2);
+    if(!isNaN(t)) tempGauge.set(t);
+    if(!isNaN(s)) rssiGauge.set(s);
   });
-  $.getJSON(`https://api.thingspeak.com/channels/${temp2Channel}/feed/last.json`,d=>{
-    const t2=parseFloat(d.field4);
+  $.getJSON("https://api.thingspeak.com/channels/231269/feed/last.json",d=>{
+    let t2=parseFloat(d.field4);
     if(!isNaN(t2)) temp2Gauge.set(t2);
   });
 }
-
-function checkSmokingStart(t){
-  if(!smokingStart && t>=30){ smokingStart=Date.now(); smokingActive=true; }
-  if(t<30) smokingActive=false;
-}
-
-function updateSmokingTime(){
-  if(!smokingActive||!smokingStart)return;
-  let d=Math.floor((Date.now()-smokingStart)/1000);
-  smoke_time.innerHTML="⏱️ Čas uzení "+new Date(d*1000).toISOString().substr(11,8);
-}
-
-function updateClock(){ wifi_time.innerHTML="🕒 Čas "+new Date().toLocaleTimeString(); }
 
 fs_btn.onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
 
