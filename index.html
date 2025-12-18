@@ -11,40 +11,22 @@ body{
   font-family:Arial,sans-serif;
   margin:0;
 }
-#fs_btn_container{
-  text-align:center;
-  background:#111;
-  padding:8px;
-}
+#fs_btn_container{text-align:center;background:#111;padding:8px;}
 #fs_btn{
-  font-size:18px;
-  padding:8px 15px;
-  border-radius:8px;
-  border:none;
-  background:#ff7800;
-  font-weight:bold;
-  cursor:pointer;
+  font-size:18px;padding:8px 15px;border-radius:8px;
+  border:none;background:#ff7800;font-weight:bold;cursor:pointer;
 }
 #container{
-  display:flex;
-  flex-wrap:wrap;
-  justify-content:center;
-  align-items:flex-start;
-  gap:20px;
-  margin-top:20px;
-  padding:10px;
+  display:flex;flex-wrap:wrap;justify-content:center;
+  align-items:flex-start;gap:20px;margin-top:20px;padding:10px;
 }
 .box{
   background:rgba(0,0,0,.65);
   border-radius:18px;
   box-shadow:0 0 30px rgba(255,120,0,.35);
-  padding:15px;
-  text-align:center;
-  flex:1 1 300px;
-  max-width:520px;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
+  padding:15px;text-align:center;
+  flex:1 1 300px;max-width:520px;
+  display:flex;flex-direction:column;align-items:center;
 }
 .gauge{width:280px;height:280px;}
 .gauge.big{width:420px;height:420px;}
@@ -55,14 +37,11 @@ body{
 .warn{color:#ffaa00}
 .bad{color:#ff3333}
 .recommend{color:#ffcc66}
-select,button,input{
-  width:90%;
-  padding:6px;
-  border-radius:6px;
-  margin-top:6px;
-}
+input,button{width:90%;padding:6px;border-radius:6px;margin-top:6px}
 .sound-controls{display:flex;gap:5px}
 hr{border:1px solid #333;margin:10px 0;}
+.blink{animation:blink 1s infinite}
+@keyframes blink{0%,50%,100%{opacity:1}25%,75%{opacity:.3}}
 </style>
 </head>
 
@@ -106,7 +85,7 @@ hr{border:1px solid #333;margin:10px 0;}
     </div>
   </div>
 
-  <!-- VENKOVNÍ TEPLOTA -->
+  <!-- VENEK -->
   <div class="box">
     <div id="temp2_gauge" class="gauge"></div>
     <div class="state">🌡️ Teplota venku</div>
@@ -118,119 +97,66 @@ hr{border:1px solid #333;margin:10px 0;}
 
 <script>
 class NiceGauge{
-  constructor(el,min,max,unit,zones=[]){
-    this.min=min; this.max=max; this.unit=unit;
-    this.zones=zones;
+  constructor(el,min,max,unit,zones=[],bands=[]){
+    this.min=min;this.max=max;this.unit=unit;
+    this.zones=zones;this.bands=bands;
 
-    el.innerHTML = `
+    el.innerHTML=`
     <svg viewBox="0 0 200 200">
       <circle cx="100" cy="100" r="85" fill="#111"/>
+      <g id="bands"></g>
       <g id="scale"></g>
       <path id="arc" fill="none" stroke-width="14" stroke-linecap="round"/>
       <line id="needle" x1="100" y1="100" x2="100" y2="25" stroke="#fff" stroke-width="4"/>
       <text id="value" x="100" y="128" fill="#fff" font-size="30" text-anchor="middle">0</text>
       <text x="100" y="152" fill="#aaa" font-size="16" text-anchor="middle">${unit}</text>
     </svg>`;
+
     this.arc=el.querySelector("#arc");
     this.needle=el.querySelector("#needle");
     this.valueText=el.querySelector("#value");
     this.scale=el.querySelector("#scale");
+    this.bandsEl=el.querySelector("#bands");
+
     this.drawScale();
+    this.drawBands();
+  }
+
+  polar(v,r){
+    let a=(v-this.min)/(this.max-this.min)*180-90;
+    a*=Math.PI/180;
+    return [100+r*Math.cos(a),100+r*Math.sin(a)];
+  }
+
+  drawBands(){
+    for(const b of this.bands){
+      let [x1,y1]=this.polar(b.from,85);
+      let [x2,y2]=this.polar(b.to,85);
+      this.bandsEl.innerHTML+=
+        `<path d="M ${x1} ${y1} A 85 85 0 0 1 ${x2} ${y2}"
+         stroke="${b.color}" stroke-width="14" fill="none" opacity=".35"/>`;
+    }
   }
 
   drawScale(){
-    for(let v=this.min; v<=this.max; v+=10){
-      let r=(v-this.min)/(this.max-this.min);
-      let a=(r*180-90)*Math.PI/180;
-      let x1=100+72*Math.sin(a), y1=100-72*Math.cos(a);
-      let x2=100+82*Math.sin(a), y2=100-82*Math.cos(a);
-      let xt=100+60*Math.sin(a), yt=100-60*Math.cos(a)+4;
+    for(let v=this.min;v<=this.max;v+=10){
+      let [x1,y1]=this.polar(v,72);
+      let [x2,y2]=this.polar(v,82);
+      let [xt,yt]=this.polar(v,60);
       this.scale.innerHTML+=`
         <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#666" stroke-width="2"/>
-        <text x="${xt}" y="${yt}" fill="#aaa" font-size="10" text-anchor="middle">${v}</text>`;
+        <text x="${xt}" y="${yt+4}" fill="#aaa" font-size="10" text-anchor="middle">${v}</text>`;
     }
   }
 
   set(v){
     v=Math.max(this.min,Math.min(this.max,v));
     this.valueText.textContent=v.toFixed(1);
+
     let ang=(v-this.min)/(this.max-this.min)*180-90;
     this.needle.setAttribute("transform",`rotate(${ang} 100 100)`);
 
-    if(this.zones.length){
-      let color="#007bff";
-      for(const z of this.zones){
-        if(v>=z.from && v<=z.to) color=z.color;
-      }
-      this.arc.setAttribute("stroke",color);
-      let r=(v-this.min)/(this.max-this.min)*Math.PI;
-      let x=100+85*Math.sin(r), y=100-85*Math.cos(r);
-      this.arc.setAttribute("d",`M 15 100 A 85 85 0 0 1 ${x} ${y}`);
-    }
-  }
-}
+    let color="#007bff";
+    for(const z of this.zones) if(v>=z.from&&v<=z.to) color=z.color;
+    this.arc.setAttribute("stroke",c
 
-/* ===== ALARM ===== */
-let audioCtx=null,lastTemp=null;
-let soundEnabled=localStorage.getItem("soundEnabled")==="true";
-let tempMin=parseFloat(localStorage.getItem("tempMin"))||75;
-let tempMax=parseFloat(localStorage.getItem("tempMax"))||85;
-
-document.addEventListener("DOMContentLoaded",()=>{
-  sound_enable.checked=soundEnabled;
-  temp_min.value=tempMin;
-  temp_max.value=tempMax;
-  sound_enable.onchange=()=>{soundEnabled=sound_enable.checked;localStorage.setItem("soundEnabled",soundEnabled);}
-  temp_min.onchange=()=>{tempMin=parseFloat(temp_min.value);localStorage.setItem("tempMin",tempMin);}
-  temp_max.onchange=()=>{tempMax=parseFloat(temp_max.value);localStorage.setItem("tempMax",tempMax);}
-});
-
-function beep(f){
-  if(!soundEnabled) return;
-  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-  const o=audioCtx.createOscillator();
-  const g=audioCtx.createGain();
-  o.frequency.value=f;
-  o.connect(g); g.connect(audioCtx.destination);
-  g.gain.setValueAtTime(0.2,audioCtx.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.2);
-  o.start(); o.stop(audioCtx.currentTime+0.2);
-}
-function testSound(f){beep(f);}
-
-/* ===== INIT ===== */
-let tempGauge,rssiGauge,temp2Gauge;
-
-function init(){
-  tempGauge=new NiceGauge(temp_gauge,0,120,"°C",[
-    {from:0,to:85,color:"#007bff"},
-    {from:85,to:120,color:"#ff3333"}
-  ]);
-
-  rssiGauge=new NiceGauge(rssi_gauge,0,100,"%");
-  temp2Gauge=new NiceGauge(temp2_gauge,-30,50,"°C");
-
-  loadData();
-  setInterval(loadData,15000);
-  setInterval(()=>wifi_time.innerHTML="🕒 Čas "+new Date().toLocaleTimeString(),1000);
-}
-
-function loadData(){
-  $.getJSON("https://api.thingspeak.com/channels/260804/feed/last.json?api_key=JXC3WDDU4WH71K93",d=>{
-    let t=parseFloat(d.field1);
-    let s=parseFloat(d.field2);
-    if(!isNaN(t)) tempGauge.set(t);
-    if(!isNaN(s)) rssiGauge.set(s);
-  });
-  $.getJSON("https://api.thingspeak.com/channels/231269/feed/last.json",d=>{
-    let t2=parseFloat(d.field4);
-    if(!isNaN(t2)) temp2Gauge.set(t2);
-  });
-}
-
-fs_btn.onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
-
-init();
-</script>
-</body>
-</html>
