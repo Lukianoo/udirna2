@@ -26,7 +26,6 @@ body{
   box-shadow:0 0 30px rgba(255,120,0,.35);
   padding:15px;text-align:center;
   flex:1 1 300px;max-width:520px;
-  display:flex;flex-direction:column;align-items:center;
 }
 .gauge{width:280px;height:280px;}
 .gauge.big{width:420px;height:420px;}
@@ -34,14 +33,10 @@ body{
 .time{color:#00d9ff;font-size:20px}
 #wifi_time{font-size:28px}
 .ok{color:#00ff66}
-.warn{color:#ffaa00}
 .bad{color:#ff3333}
-.recommend{color:#ffcc66}
-input,button{width:90%;padding:6px;border-radius:6px;margin-top:6px}
-.sound-controls{display:flex;gap:5px}
-hr{border:1px solid #333;margin:10px 0;}
 .blink{animation:blink 1s infinite}
-@keyframes blink{0%,50%,100%{opacity:1}25%,75%{opacity:.3}}
+@keyframes blink{50%{opacity:.3}}
+input,button{width:90%;padding:6px;border-radius:6px;margin-top:6px}
 </style>
 </head>
 
@@ -53,89 +48,83 @@ hr{border:1px solid #333;margin:10px 0;}
 
 <div id="container">
 
-  <!-- WIFI -->
-  <div class="box">
-    <div id="rssi_gauge" class="gauge"></div>
-    <div id="signal_state" class="state"></div>
-    <div id="wifi_time" class="time"></div>
-  </div>
+<div class="box">
+  <div id="rssi_gauge" class="gauge"></div>
+  <div id="signal_state" class="state"></div>
+  <div id="wifi_time" class="time"></div>
+</div>
 
-  <!-- HLAVNÍ TEPLOTA -->
-  <div class="box">
-    <div id="temp_gauge" class="gauge big"></div>
-    <div id="smoke_state" class="state"></div>
-    <div id="smoke_time" class="time"></div>
-    <div class="recommend" id="recommend"></div>
-    <div class="state" id="meat_state"></div>
-    <hr>
+<div class="box">
+  <div id="temp_gauge" class="gauge big"></div>
+  <div id="smoke_state" class="state"></div>
+  <hr>
+  <div>Min alarm (°C)</div>
+  <input id="temp_min" type="number" value="75">
+  <label><input type="checkbox" id="sound_enable" checked> 🔔 Pípnutí</label>
+  <div>Max alarm (°C)</div>
+  <input id="temp_max" type="number" value="85">
+</div>
 
-    <div>Minimální teplota alarm (°C)</div>
-    <input type="number" id="temp_min" value="75">
-
-    <div class="sound-controls">
-      <label><input type="checkbox" id="sound_enable"> 🔔 Pípnutí</label>
-      <button onclick="testSound(400)">Test</button>
-    </div>
-
-    <div>Maximální teplota alarm (°C)</div>
-    <input type="number" id="temp_max" value="85">
-
-    <div class="sound-controls">
-      <button onclick="testSound(600)">Test</button>
-    </div>
-  </div>
-
-  <!-- VENEK -->
-  <div class="box">
-    <div id="temp2_gauge" class="gauge"></div>
-    <div class="state">🌡️ Teplota venku</div>
-  </div>
+<div class="box">
+  <div id="temp2_gauge" class="gauge"></div>
+  <div class="state">🌡️ Teplota venku</div>
+</div>
 
 </div>
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
 
 <script>
-class NiceGauge{
-  constructor(el,min,max,unit,zones=[],bands=[]){
-    this.min=min;this.max=max;this.unit=unit;
-    this.zones=zones;this.bands=bands;
+/* ===== SOUND (CHROME SAFE) ===== */
+let audioCtx=null;
+function beep(f){
+  if(!sound_enable.checked) return;
+  if(!audioCtx){
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  }
+  const o=audioCtx.createOscillator();
+  const g=audioCtx.createGain();
+  o.frequency.value=f;
+  o.connect(g); g.connect(audioCtx.destination);
+  g.gain.setValueAtTime(0.2,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.25);
+  o.start(); o.stop(audioCtx.currentTime+0.25);
+}
 
+/* ===== GAUGE ===== */
+class Gauge{
+  constructor(el,min,max,unit,main=false){
+    this.min=min;this.max=max;this.main=main;
     el.innerHTML=`
     <svg viewBox="0 0 200 200">
+      <defs>
+        <linearGradient id="grad" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0%" stop-color="#004cff"/>
+          <stop offset="60%" stop-color="#3399ff"/>
+          <stop offset="100%" stop-color="#ff3333"/>
+        </linearGradient>
+      </defs>
       <circle cx="100" cy="100" r="85" fill="#111"/>
-      <g id="bands"></g>
+      ${main?`<path id="band" stroke="url(#grad)" stroke-width="14" fill="none" opacity=".35"/>`:``}
+      <path id="arc" stroke="#00f" stroke-width="5" fill="none"/>
       <g id="scale"></g>
-      <path id="arc" fill="none" stroke-width="14" stroke-linecap="round"/>
       <line id="needle" x1="100" y1="100" x2="100" y2="25" stroke="#fff" stroke-width="4"/>
-      <text id="value" x="100" y="128" fill="#fff" font-size="30" text-anchor="middle">0</text>
-      <text x="100" y="152" fill="#aaa" font-size="16" text-anchor="middle">${unit}</text>
+      <text id="val" x="100" y="130" fill="#fff" font-size="30" text-anchor="middle">0</text>
+      <text x="100" y="155" fill="#aaa" font-size="16" text-anchor="middle">${unit}</text>
     </svg>`;
-
+    this.svg=el.querySelector("svg");
     this.arc=el.querySelector("#arc");
     this.needle=el.querySelector("#needle");
-    this.valueText=el.querySelector("#value");
+    this.val=el.querySelector("#val");
+    this.band=el.querySelector("#band");
     this.scale=el.querySelector("#scale");
-    this.bandsEl=el.querySelector("#bands");
-
     this.drawScale();
-    this.drawBands();
+    if(main) this.drawBand();
   }
 
   polar(v,r){
-    let a=(v-this.min)/(this.max-this.min)*180-90;
-    a*=Math.PI/180;
-    return [100+r*Math.cos(a),100+r*Math.sin(a)];
-  }
-
-  drawBands(){
-    for(const b of this.bands){
-      let [x1,y1]=this.polar(b.from,85);
-      let [x2,y2]=this.polar(b.to,85);
-      this.bandsEl.innerHTML+=
-        `<path d="M ${x1} ${y1} A 85 85 0 0 1 ${x2} ${y2}"
-         stroke="${b.color}" stroke-width="14" fill="none" opacity=".35"/>`;
-    }
+    let a=(v-this.min)/(this.max-this.min)*Math.PI;
+    return [100+r*Math.sin(a),100-r*Math.cos(a)];
   }
 
   drawScale(){
@@ -144,66 +133,55 @@ class NiceGauge{
       let [x2,y2]=this.polar(v,82);
       let [xt,yt]=this.polar(v,60);
       this.scale.innerHTML+=`
-        <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#666" stroke-width="2"/>
-        <text x="${xt}" y="${yt+4}" fill="#aaa" font-size="10" text-anchor="middle">${v}</text>`;
+      <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#666"/>
+      <text x="${xt}" y="${yt+4}" fill="#aaa" font-size="10" text-anchor="middle">${v}</text>`;
     }
+  }
+
+  drawBand(){
+    let [x,y]=this.polar(this.max,85);
+    this.band.setAttribute("d",`M 15 100 A 85 85 0 0 1 ${x} ${y}`);
   }
 
   set(v){
     v=Math.max(this.min,Math.min(this.max,v));
-    this.valueText.textContent=v.toFixed(1);
-
-    let ang=(v-this.min)/(this.max-this.min)*180-90;
-    this.needle.setAttribute("transform",`rotate(${ang} 100 100)`);
-
-    let color="#007bff";
-    for(const z of this.zones) if(v>=z.from&&v<=z.to) color=z.color;
-    this.arc.setAttribute("stroke",color);
-
+    this.val.textContent=v.toFixed(1);
+    let a=(v-this.min)/(this.max-this.min)*180-90;
+    this.needle.setAttribute("transform",`rotate(${a} 100 100)`);
     let [x,y]=this.polar(v,85);
     this.arc.setAttribute("d",`M 15 100 A 85 85 0 0 1 ${x} ${y}`);
   }
 }
 
 /* ===== INIT ===== */
-let tempGauge,rssiGauge,temp2Gauge;
+let tempGauge,rssiGauge,temp2Gauge,lastTemp=null;
 
 function init(){
-  tempGauge=new NiceGauge(
-    temp_gauge,0,120,"°C",
-    [
-      {from:0,to:85,color:"#007bff"},
-      {from:85,to:120,color:"#ff3333"}
-    ],
-    [
-      {from:0,to:75,color:"#004cff"},
-      {from:75,to:85,color:"#3399ff"},
-      {from:85,to:120,color:"#ff3333"}
-    ]
-  );
+  tempGauge=new Gauge(temp_gauge,0,120,"°C",true);
+  rssiGauge=new Gauge(rssi_gauge,0,100,"%");
+  temp2Gauge=new Gauge(temp2_gauge,-30,50,"°C");
 
-  rssiGauge=new NiceGauge(rssi_gauge,0,100,"%");
-  temp2Gauge=new NiceGauge(temp2_gauge,-30,50,"°C");
-
-  loadData();
-  setInterval(loadData,15000);
-  setInterval(()=>wifi_time.innerHTML="🕒 Čas "+new Date().toLocaleTimeString(),1000);
+  setInterval(load,15000);
+  setInterval(()=>wifi_time.innerHTML="🕒 "+new Date().toLocaleTimeString(),1000);
+  load();
 }
 
-function loadData(){
+function load(){
   $.getJSON("https://api.thingspeak.com/channels/260804/feed/last.json?api_key=JXC3WDDU4WH71K93",d=>{
     let t=parseFloat(d.field1);
     let s=parseFloat(d.field2);
     if(!isNaN(t)){
       tempGauge.set(t);
-      temp_gauge.classList.toggle("blink",t>85);
+      if(lastTemp!==null && lastTemp<=temp_max.value && t>temp_max.value) beep(600);
+      temp_gauge.classList.toggle("blink",t>temp_max.value);
+      smoke_state.textContent=t>temp_max.value?"⚠️ PŘEHŘÁTÍ":"🔥 OK";
+      lastTemp=t;
     }
     if(!isNaN(s)){
       rssiGauge.set(s);
-      signal_state.innerHTML=s>70?"📶 Výborný signál":s>40?"📡 Dobrý signál":"⚠️ Slabý signál";
+      signal_state.textContent=s>50?"📶 Signál OK":"⚠️ Slabý signál";
     }
   });
-
   $.getJSON("https://api.thingspeak.com/channels/231269/feed/last.json",d=>{
     let t2=parseFloat(d.field4);
     if(!isNaN(t2)) temp2Gauge.set(t2);
@@ -211,8 +189,8 @@ function loadData(){
 }
 
 fs_btn.onclick=()=>document.fullscreenElement
-  ?document.exitFullscreen()
-  :document.documentElement.requestFullscreen();
+ ?document.exitFullscreen()
+ :document.documentElement.requestFullscreen();
 
 init();
 </script>
