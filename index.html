@@ -13,7 +13,7 @@
     body { margin: 0; font-family: Arial, sans-serif; background: #111; color: #fff; }
     h1.header { display: flex; justify-content: space-between; align-items: center; margin: 10px 20px 10px; }
     #clock { font-size: 18px; opacity: 0.8; }
-    #temp-status { text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+    #temp-status { text-align: center; font-size: 32px; font-weight: bold; margin-bottom: 10px; }
     .status-low { color: #3399ff; }
     .status-ok { color: #33cc33; }
     .status-high { color: #ff3333; }
@@ -22,6 +22,7 @@
     .gauge.big { transform: scale(1.15); }
     .gauge.small { transform: scale(0.9); }
     .label { margin-top: 6px; font-size: 14px; opacity: 0.8; }
+    .gauge-title { font-size: 32px; font-weight: bold; margin-bottom: 10px; text-align: center; color: #ffffff; }
     footer { text-align: center; font-size: 12px; opacity: 0.6; margin: 10px 0 20px; }
   </style>
 </head>
@@ -37,8 +38,9 @@
   </div>
 
   <div class="gauge big">
+    <div class="gauge-title">Teplota v udírně</div>
     <div id="gauge-center" style="width:100%; height:260px;"></div>
-    <div class="label">Teplota v udírně [°C]</div>
+    <div class="label">[°C]</div>
   </div>
 
   <div class="gauge small">
@@ -54,24 +56,68 @@
 <script>
   const CHANNEL_LEFT_CENTER = "260804";
   const CHANNEL_RIGHT = "231269";
-
   const FIELD_LEFT = 2;
   const FIELD_CENTER = 1;
-  const FIELD_RIGHT = 4; // opraveno na field4
+  const FIELD_RIGHT = 4;
 
-  const gaugeLeft = new JustGage({ id: "gauge-left", value: 0, min: 0, max: 100, title: "WiFi", label: "%", customSectors: [ { color: "#ff3333", lo: 0, hi: 30 }, { color: "#ffcc00", lo: 30, hi: 60 }, { color: "#33cc33", lo: 60, hi: 100 } ] });
+  const gaugeLeft = new JustGage({
+    id: "gauge-left",
+    value: 0,
+    min: 0,
+    max: 100,
+    title: "WiFi",
+    label: "%",
+    levelColors: ["#ff3333", "#ffcc00", "#33cc33"],
+    valueFontColor: "#ffffff",
+    valueFontSize: 60,
+    customSectors: [ { color: "#ff3333", lo: 0, hi: 30 }, { color: "#ffcc00", lo: 30, hi: 60 }, { color: "#33cc33", lo: 60, hi: 100 } ]
+  });
 
-  const gaugeCenter = new JustGage({ id: "gauge-center", value: 0, min: 0, max: 120, title: "Udírna", label: "°C", customSectors: [ { color: "#3399ff", lo: 0, hi: 75 }, { color: "#33cc33", lo: 75, hi: 85 }, { color: "#ff3333", lo: 85, hi: 120 } ] });
+  const gaugeCenter = new JustGage({
+    id: "gauge-center",
+    value: 0,
+    min: 0,
+    max: 120,
+    title: "Udírna",
+    label: "°C",
+    levelColors: ["#3399ff", "#33cc33", "#ff3333"],
+    valueFontColor: "#ffffff",
+    valueFontSize: 70,
+    customSectors: [ { color: "#3399ff", lo: 0, hi: 75 }, { color: "#33cc33", lo: 75, hi: 85 }, { color: "#ff3333", lo: 85, hi: 120 } ]
+  });
 
-  const gaugeRight = new JustGage({ id: "gauge-right", value: 0, min: -30, max: 40, title: "Venek", label: "°C", customSectors: [ { color: "#3399ff", lo: -30, hi: 0 }, { color: "#33cc33", lo: 0, hi: 25 }, { color: "#ff9933", lo: 25, hi: 40 } ] });
+  const gaugeRight = new JustGage({
+    id: "gauge-right",
+    value: 0,
+    min: -30,
+    max: 40,
+    title: "Venek",
+    label: "°C",
+    levelColors: ["#3399ff", "#33cc33", "#ff9933"],
+    valueFontColor: "#ffffff",
+    valueFontSize: 60,
+    customSectors: [ { color: "#3399ff", lo: -30, hi: 0 }, { color: "#33cc33", lo: 0, hi: 25 }, { color: "#ff9933", lo: 25, hi: 40 } ]
+  });
+
+  let lastCenterValue = 0;
+  let lastLeftValue = 0;
+  let lastRightValue = 0;
 
   async function loadThingSpeak() {
     try {
       let res = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`);
       let data = await res.json();
-      gaugeLeft.refresh(parseFloat(data[`field${FIELD_LEFT}`]));
+
+      const leftValue = parseFloat(data[`field${FIELD_LEFT}`]);
+      gaugeLeft.refresh(leftValue);
+      if (Math.abs(leftValue - lastLeftValue) > 5) flashGauge('gauge-left');
+      lastLeftValue = leftValue;
+
       const centerValue = parseFloat(data[`field${FIELD_CENTER}`]);
       gaugeCenter.refresh(centerValue);
+      if (Math.abs(centerValue - lastCenterValue) > 2) flashGauge('gauge-center');
+      lastCenterValue = centerValue;
+
       const statusEl = document.getElementById('temp-status');
       statusEl.className = '';
       if (centerValue < 75) { statusEl.innerText = 'Nízká teplota'; statusEl.classList.add('status-low'); }
@@ -80,22 +126,42 @@
 
       res = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`);
       data = await res.json();
-      gaugeRight.refresh(parseFloat(data[`field${FIELD_RIGHT}`])); // nyní field4
-      if (data.created_at) { const d = new Date(data.created_at); document.getElementById('update-time').innerText = 'Poslední aktualizace: ' + d.toLocaleString('cs-CZ'); }
+      const rightValue = parseFloat(data[`field${FIELD_RIGHT}`]);
+      gaugeRight.refresh(rightValue);
+      if (Math.abs(rightValue - lastRightValue) > 2) flashGauge('gauge-right');
+      lastRightValue = rightValue;
+
+      if (data.created_at) {
+        const d = new Date(data.created_at);
+        document.getElementById('update-time').innerText = 'Poslední aktualizace: ' + d.toLocaleString('cs-CZ');
+      }
 
     } catch (e) {
       console.error('Chyba při čtení ThingSpeak', e);
     }
   }
 
+  function flashGauge(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.transition = 'transform 0.2s, box-shadow 0.2s';
+    el.style.transform = 'scale(1.05)';
+    el.style.boxShadow = '0 0 25px #ffffff';
+    setTimeout(() => {
+      el.style.transform = 'scale(1)';
+      el.style.boxShadow = '0 0 12px #ffffff';
+    }, 200);
+  }
+
   loadThingSpeak();
   setInterval(loadThingSpeak, 15000);
 
-  function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('cs-CZ'); }
+  function updateClock() {
+    document.getElementById('clock').innerText = new Date().toLocaleTimeString('cs-CZ');
+  }
   updateClock();
   setInterval(updateClock, 1000);
 </script>
 
 </body>
 </html>
-
