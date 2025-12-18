@@ -158,5 +158,63 @@ class NiceGauge{
 
     let color="#007bff";
     for(const z of this.zones) if(v>=z.from&&v<=z.to) color=z.color;
-    this.arc.setAttribute("stroke",c
+    this.arc.setAttribute("stroke",color);
 
+    let [x,y]=this.polar(v,85);
+    this.arc.setAttribute("d",`M 15 100 A 85 85 0 0 1 ${x} ${y}`);
+  }
+}
+
+/* ===== INIT ===== */
+let tempGauge,rssiGauge,temp2Gauge;
+
+function init(){
+  tempGauge=new NiceGauge(
+    temp_gauge,0,120,"°C",
+    [
+      {from:0,to:85,color:"#007bff"},
+      {from:85,to:120,color:"#ff3333"}
+    ],
+    [
+      {from:0,to:75,color:"#004cff"},
+      {from:75,to:85,color:"#3399ff"},
+      {from:85,to:120,color:"#ff3333"}
+    ]
+  );
+
+  rssiGauge=new NiceGauge(rssi_gauge,0,100,"%");
+  temp2Gauge=new NiceGauge(temp2_gauge,-30,50,"°C");
+
+  loadData();
+  setInterval(loadData,15000);
+  setInterval(()=>wifi_time.innerHTML="🕒 Čas "+new Date().toLocaleTimeString(),1000);
+}
+
+function loadData(){
+  $.getJSON("https://api.thingspeak.com/channels/260804/feed/last.json?api_key=JXC3WDDU4WH71K93",d=>{
+    let t=parseFloat(d.field1);
+    let s=parseFloat(d.field2);
+    if(!isNaN(t)){
+      tempGauge.set(t);
+      temp_gauge.classList.toggle("blink",t>85);
+    }
+    if(!isNaN(s)){
+      rssiGauge.set(s);
+      signal_state.innerHTML=s>70?"📶 Výborný signál":s>40?"📡 Dobrý signál":"⚠️ Slabý signál";
+    }
+  });
+
+  $.getJSON("https://api.thingspeak.com/channels/231269/feed/last.json",d=>{
+    let t2=parseFloat(d.field4);
+    if(!isNaN(t2)) temp2Gauge.set(t2);
+  });
+}
+
+fs_btn.onclick=()=>document.fullscreenElement
+  ?document.exitFullscreen()
+  :document.documentElement.requestFullscreen();
+
+init();
+</script>
+</body>
+</html>
