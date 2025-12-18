@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Udírna – Řídicí panel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+body{
+  background:radial-gradient(circle at top,#2a2a2a,#000);
+  color:#eee;
+  font-family:Arial,sans-serif;
+  margin:0;
+}
+#fs_btn_container{
+  text-align:center;
+  background:#111;
+  padding:8px;
+}
+#fs_btn{
+  font-size:18px;
+  padding:8px 15px;
+  border-radius:8px;
+  border:none;
+  background:#ff7800;
+  font-weight:bold;
+  cursor:pointer;
+}
+#container{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  align-items:flex-start;
+  gap:20px;
+  padding:10px;
+}
+.box{
+  background:rgba(0,0,0,.65);
+  border-radius:18px;
+  box-shadow:0 0 30px rgba(255,120,0,.35);
+  padding:15px;
+  flex:1 1 300px;
+  max-width:520px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+.gauge{width:280px;height:280px;}
+.gauge.big{width:420px;height:420px;}
+.state,.time{text-align:center;width:100%;margin-top:8px}
+.time{color:#00d9ff;font-size:20px}
+#wifi_time{font-size:26px}
+.ok{color:#00ff66}
+.warn{color:#ffaa00}
+.bad{color:#ff3333}
+.recommend{color:#ffcc66}
+select,button,input{
+  width:90%;
+  padding:6px;
+  border-radius:6px;
+  margin-top:6px;
+}
+.sound-controls{display:flex;gap:5px;align-items:center}
+hr{border:1px solid #333;margin:10px 0;width:100%}
+</style>
+</head>
+
+<body>
+
+<div id="fs_btn_container">
+  <button id="fs_btn">Fullscreen</button>
+</div>
+
+<div id="container">
+
+  <!-- WIFI -->
+  <div class="box">
+    <div id="rssi_gauge" class="gauge"></div>
+    <div id="signal_state" class="state"></div>
+    <div id="wifi_time" class="time"></div>
+  </div>
+
+  <!-- HLAVNÍ TEPLOTA -->
+  <div class="box">
+    <div id="temp_gauge" class="gauge big"></div>
+    <div id="smoke_state" class="state"></div>
+    <div id="smoke_time" class="time"></div>
+    <div class="recommend" id="recommend"></div>
+    <div class="state" id="meat_state"></div>
+
+    <hr>
+
+    <div>Min. alarm (°C)</div>
+    <input type="number" id="temp_min" value="75">
+
+    <label>
+      <input type="checkbox" id="sound_enable"> Zvuk
+    </label>
+
+    <div>Max. alarm (°C)</div>
+    <input type="number" id="temp_max" value="85">
+  </div>
+
+  <!-- VENKOVNÍ TEPLOTA -->
+  <div class="box">
+    <div id="temp2_gauge" class="gauge"></div>
+    <div class="state">Teplota venku</div>
+  </div>
+
+</div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+
+<script>
+/* ===== SVG GAUGE ===== */
+class NiceGauge{
+  constructor(el,min,max,unit,zones,showBar=true){
+    this.min=min; this.max=max; this.unit=unit;
+    this.zones=zones; this.showBar=showBar;
+
+    el.innerHTML=`
+    <svg viewBox="0 0 200 200">
+      <circle cx="100" cy="100" r="85" fill="#111"/>
+      <g id="scale"></g>
+      <path id="arc" fill="none" stroke="#0f0" stroke-width="14" stroke-linecap="round"/>
+      <line id="needle" x1="100" y1="100" x2="100" y2="25" stroke="#fff" stroke-width="4"/>
+      <text id="value" x="100" y="128" fill="#fff" font-size="30" text-anchor="middle">0</text>
+      <text x="100" y="152" fill="#aaa" font-size="16" text-anchor="middle">${unit}</text>
+    </svg>`;
+    this.arc=el.querySelector("#arc");
+    this.needle=el.querySelector("#needle");
+    this.valueText=el.querySelector("#value");
+    this.scale=el.querySelector("#scale");
+    this.drawScale();
+  }
+
+  drawScale(){
+    for(let v=this.min;v<=this.max;v+=10){
+      let r=(v-this.min)/(this.max-this.min);
+      let a=(r*180-90)*Math.PI/180;
+      let x1=100+72*Math.sin(a), y1=100-72*Math.cos(a);
+      let x2=100+82*Math.sin(a), y2=100-82*Math.cos(a);
+      let xt=100+60*Math.sin(a), yt=100-60*Math.cos(a)+4;
+      this.scale.innerHTML+=`
+        <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#666"/>
+        <text x="${xt}" y="${yt}" fill="#aaa" font-size="10" text-anchor="middle">${v}</text>`;
+    }
+  }
+
+  set(v){
+    v=Math.max(this.min,Math.min(this.max,v));
+    this.valueText.textContent=v.toFixed(1);
+    let ang=(v-this.min)/(this.max-this.min)*180-90;
+    this.needle.setAttribute("transform",`rotate(${ang} 100 100)`);
+
+    if(this.showBar){
+      let col="#0f0";
+      for(const z of this.zones)
+        if(v>=z.from && v<=z.to) col=z.color;
+      this.arc.setAttribute("stroke",col);
+      let a=(v-this.min)/(this.max-this.min)*Math.PI;
+      let x=100+85*Math.sin(a), y=100-85*Math.cos(a);
+      this.arc.setAttribute("d",`M15 100 A85 85 0 0 1 ${x} ${y}`);
+    }
+  }
+}
+
+/* ===== INIT ===== */
+const mainChannel=260804;
+const temp2Channel=231269;
+
+let tempGauge,rssiGauge,temp2Gauge;
+let smokingStart=null, smokingActive=false;
+
+function init(){
+  tempGauge=new NiceGauge(temp_gauge,0,120,"°C",[
+    {from:0,to:75,color:"#007bff"},
+    {from:75,to:85,color:"#00ff66"},
+    {from:85,to:120,color:"#ff3333"}
+  ]);
+  rssiGauge=new NiceGauge(rssi_gauge,0,100,"%",[],false);
+  temp2Gauge=new NiceGauge(temp2_gauge,-30,50,"°C",[],false);
+
+  loadData();
+  setInterval(loadData,15000);
+  setInterval(updateClock,1000);
+  setInterval(updateSmokingTime,1000);
+}
+
+function loadData(){
+  $.getJSON(`https://api.thingspeak.com/channels/${mainChannel}/feed/last.json`,d=>{
+    let t=parseFloat(d.field1);
+    let s=parseFloat(d.field2);
+    if(!isNaN(t)){ tempGauge.set(t); updateState(t); }
+    if(!isNaN(s)){ rssiGauge.set(s); signal_state.innerHTML=s+" %"; }
+  });
+  $.getJSON(`https://api.thingspeak.com/channels/${temp2Channel}/feed/last.json`,d=>{
+    let t2=parseFloat(d.field4);
+    if(!isNaN(t2)) temp2Gauge.set(t2);
+  });
+}
+
+function updateState(t){
+  if(t>=30 && !smokingStart){ smokingStart=Date.now(); smokingActive=true; }
+  if(t<30) smokingActive=false;
+
+  smoke_state.innerHTML =
+    t<30?"Udírna studená":
+    t<60?"Studené uzení":
+    t<75?"Ideální teplota":
+    t<85?"Pozor – vyšší teplota":
+    "PŘEHŘÁTÍ!";
+
+  meat_state.innerHTML =
+    t<40?"Osychání":
+    t<55?"Kouř":
+    t<70?"Ideální":
+    "Tuk se vypéká";
+
+  recommend.innerHTML="Bůček 6–8 h | Špek 4–6 h";
+}
+
+function updateSmokingTime(){
+  if(!smokingActive||!smokingStart)return;
+  let d=Math.floor((Date.now()-smokingStart)/1000);
+  smoke_time.innerHTML="Čas uzení "+new Date(d*1000).toISOString().substr(11,8);
+}
+
+function updateClock(){
+  wifi_time.innerHTML="Čas "+new Date().toLocaleTimeString();
+}
+
+/* ===== FULLSCREEN ===== */
+fs_btn.onclick=()=>document.fullscreenElement
+ ?document.exitFullscreen()
+ :document.documentElement.requestFullscreen();
+
+init();
+</script>
+
+</body>
+</html>
