@@ -106,7 +106,7 @@ hr{border:1px solid #333;margin:10px 0;}
 
 <script>
 class NiceGauge{
-  constructor(el,min,max,unit,zones){
+  constructor(el,min,max,unit,zones=[]){
     this.min=min; this.max=max; this.unit=unit;
     this.zones=zones; 
 
@@ -145,14 +145,20 @@ class NiceGauge{
     let ang=(v-this.min)/(this.max-this.min)*180-90;
     this.needle.setAttribute("transform",`rotate(${ang} 100 100)`);
 
-    // barevné pruhy zón
-    for(const z of this.zones){
-      if(v >= z.from && v <= z.to) this.arc.setAttribute("stroke", z.color);
-    }
+    // barevný pruh jen pokud jsou definované zóny
+    if(this.zones.length){
+      let color="#0f0";
+      for(const z of this.zones){
+        if(v >= z.from && v <= z.to) color=z.color;
+      }
+      this.arc.setAttribute("stroke", color);
 
-    let ratio=(v-this.min)/(this.max-this.min)*Math.PI;
-    let x=100+85*Math.sin(ratio), y=100-85*Math.cos(ratio);
-    this.arc.setAttribute("d",`M 15 100 A 85 85 0 0 1 ${x} ${y}`);
+      let ratio=(v-this.min)/(this.max-this.min)*Math.PI;
+      let x=100+85*Math.sin(ratio), y=100-85*Math.cos(ratio);
+      this.arc.setAttribute("d",`M 15 100 A 85 85 0 0 1 ${x} ${y}`);
+    } else {
+      this.arc.setAttribute("stroke","none");
+    }
   }
 }
 
@@ -211,13 +217,16 @@ let smokingStart=null;
 let smokingActive=false;
 
 function init(){
+  // barevný pruh jen na hlavní teplotu
   tempGauge=new NiceGauge(temp_gauge,0,120,"°C",[
     {from:0,to:75,color:"#007bff"},
     {from:75,to:85,color:"#0f0"},
     {from:85,to:120,color:"#f00"}
   ]);
-  rssiGauge=new NiceGauge(rssi_gauge,0,100,"%",[]);
-  temp2Gauge=new NiceGauge(temp2_gauge,-30,50,"°C",[]);
+
+  // RSSI a venkovní teplota bez pruhu
+  rssiGauge=new NiceGauge(rssi_gauge,0,100,"%");
+  temp2Gauge=new NiceGauge(temp2_gauge,-30,50,"°C");
 
   loadData();
   setInterval(loadData,15000);
