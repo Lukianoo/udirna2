@@ -1,121 +1,127 @@
 <!DOCTYPE html>
 <html lang="cs">
 <head>
-<meta charset="UTF-8">
-<title>Udírna – přehledný dashboard</title>
-<style>
-body{
-  margin:0;
-  background:#000;
-  color:#fff;
-  font-family:Arial,Helvetica,sans-serif;
-}
-.wrap{
-  display:flex;
-  gap:30px;
-  justify-content:center;
-  padding:30px;
-}
-.card{
-  background:#0b0b0b;
-  border-radius:20px;
-  padding:20px;
-  box-shadow:0 0 30px rgba(255,120,0,.3);
-  text-align:center;
-}
-svg{width:260px;height:260px}
-.label{margin-top:10px;color:#ccc}
-input{width:100%;margin:6px 0;padding:6px;border-radius:6px}
-button{padding:6px 10px;border-radius:6px}
-</style>
+  <meta charset="UTF-8">
+  <title>Panel udírny</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- JustGage + dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/raphael@2.3.0/raphael.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/justgage@1.4.0/justgage.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: #fff;
+    }
+
+    h1 {
+      text-align: center;
+      margin: 10px 0 20px;
+    }
+
+    .panel {
+      display: grid;
+      grid-template-columns: 1fr 1.5fr 1fr;
+      gap: 20px;
+      padding: 20px;
+      max-width: 1200px;
+      margin: auto;
+      align-items: center;
+    }
+
+    .gauge {
+      background: #1c1c1c;
+      border-radius: 20px;
+      padding: 10px;
+      box-shadow: 0 0 20px rgba(255,255,255,0.05);
+    }
+
+    #gauge-middle {
+      transform: scale(1.15);
+    }
+
+    footer {
+      text-align: center;
+      font-size: 12px;
+      opacity: 0.6;
+      margin-top: 10px;
+    }
+  </style>
 </head>
 <body>
 
-<div class="wrap">
-  <div class="card">
-    <svg id="gHum"></svg>
-    <div class="label">Vlhkost (%)</div>
-  </div>
+<h1>🔥 Panel udírny</h1>
 
-  <div class="card">
-    <svg id="gMain"></svg>
-    <div class="label">Teplota udírny (°C)</div>
-    <input id="minA" type="number" value="75">
-    <input id="maxA" type="number" value="85">
-    <label><input type="checkbox" id="sound" checked> Zvuk alarmu</label><br>
-    <button onclick="unlockAudio();beep(400)">Test zvuku</button>
-  </div>
-
-  <div class="card">
-    <svg id="gOut"></svg>
-    <div class="label">Teplota venku (°C)</div>
-  </div>
+<div class="panel">
+  <div class="gauge"><div id="gauge-left"></div></div>
+  <div class="gauge" id="gauge-middle"><div id="gauge-center"></div></div>
+  <div class="gauge"><div id="gauge-right"></div></div>
 </div>
 
+<footer>Data z ThingSpeak</footer>
+
 <script>
-/* ===== GAUGE ===== */
-class Gauge{
-  constructor(svg,{min,max,unit,arc=false}){
-    this.svg=svg;this.min=min;this.max=max;this.unit=unit;this.arcEnabled=arc;
-    svg.setAttribute('viewBox','0 0 200 200');
-    svg.innerHTML=`
-      <circle cx="100" cy="100" r="90" fill="#111"/>
-      <g class="scale"></g>
-      ${arc?'<path class="arc" stroke="#1e90ff" stroke-width="12" fill="none"/>':''}
-      <line class="needle" x1="100" y1="100" x2="100" y2="25" stroke="#fff" stroke-width="4"/>
-      <text class="val" x="100" y="120" font-size="36" text-anchor="middle">0</text>
-      <text x="100" y="145" font-size="16" fill="#aaa" text-anchor="middle">${unit}</text>`;
+  // === NASTAVENÍ ===
+  const CHANNEL_LEFT_CENTER = "260804"; // kanál pro levý a prostřední gauge
+  const CHANNEL_RIGHT = "1152099";       // jiný kanál pro pravý gauge
 
-    this.scale=svg.querySelector('.scale');
-    this.arc=svg.querySelector('.arc');
-    this.needle=svg.querySelector('.needle');
-    this.valText=svg.querySelector('.val');
+  const FIELD_LEFT = 2;    // WiFi signál [%]
+  const FIELD_CENTER = 1;  // Teplota udírny [°C]
+  const FIELD_RIGHT = 3;   // Venkovní teplota [°C]
 
-    this.drawScale();
-    this.set(min);
-  }
+  // === GAUGES ===
+  const gaugeLeft = new JustGage({
+    id: "gauge-left",
+    value: 0,
+    min: 0,
+    max: 100,
+    title: "WiFi signál",
+    label: "%"
+  });
 
-  angle(v){return (v-this.min)/(this.max-this.min)*180-90}
-  polar(v,r){const a=this.angle(v)*Math.PI/180;return[100+r*Math.cos(a),100+r*Math.sin(a)]}
+  const gaugeCenter = new JustGage({
+    id: "gauge-center",
+    value: 0,
+    min: 0,
+    max: 150,
+    title: "Teplota v udírně",
+    label: "°C",
+    levelColors: ["#00ff00", "#ffcc00", "#ff0000"]
+  });
 
-  drawScale(){
-    for(let i=0;i<=10;i++){
-      const v=this.min+(this.max-this.min)/10*i;
-      const [x1,y1]=this.polar(v,70);
-      const [x2,y2]=this.polar(v,85);
-      this.scale.innerHTML+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#555"/>`;
+  const gaugeRight = new JustGage({
+    id: "gauge-right",
+    value: 0,
+    min: 0,
+    max: 150,
+    title: "Teplota venku",
+    label: "°C"
+  });
+
+  async function loadThingSpeak() {
+    try {
+      // levý a prostřední gauge
+      let res = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`);
+      let data = await res.json();
+      gaugeLeft.refresh(parseFloat(data[`field${FIELD_LEFT}`]));
+      gaugeCenter.refresh(parseFloat(data[`field${FIELD_CENTER}`]));
+
+      // pravý gauge (jiný kanál)
+      res = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`);
+      data = await res.json();
+      gaugeRight.refresh(parseFloat(data[`field${FIELD_RIGHT}`]));
+
+    } catch (e) {
+      console.error("Chyba při čtení ThingSpeak", e);
     }
   }
 
-  set(v){
-    v=Math.max(this.min,Math.min(this.max,v));
-    this.valText.textContent=v.toFixed(1);
-    this.needle.setAttribute('transform',`rotate(${this.angle(v)} 100 100)`);
-    if(this.arc){
-      const [x0,y0]=this.polar(this.min,80);
-      const [x1,y1]=this.polar(v,80);
-      const large=v>this.min+(this.max-this.min)/2?1:0;
-      this.arc.setAttribute('d',`M ${x0} ${y0} A 80 80 0 ${large} 1 ${x1} ${y1}`);
-    }
-  }
-}
-
-/* ===== AUDIO ===== */
-let audioCtx=null;
-function unlockAudio(){ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }
-function beep(f){ if(!audioCtx||!sound.checked)return; const o=audioCtx.createOscillator();const g=audioCtx.createGain();o.frequency.value=f;o.connect(g);g.connect(audioCtx.destination);g.gain.setValueAtTime(0.2,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.2);o.start();o.stop(audioCtx.currentTime+0.2);} 
-
-/* ===== INIT ===== */
-const hum=new Gauge(gHum,{min:0,max:100,unit:'%'});
-const main=new Gauge(gMain,{min:0,max:120,unit:'°C',arc:true});
-const out=new Gauge(gOut,{min:-30,max:50,unit:'°C'});
-
-let t=18;
-setInterval(()=>{
-  t+=Math.random()*2-1;
-  main.set(t);
-  if(t<minA.value||t>maxA.value)beep(800);
-},2000);
+  loadThingSpeak();
+  setInterval(loadThingSpeak, 15000); // ThingSpeak limit
 </script>
+
 </body>
 </html>
