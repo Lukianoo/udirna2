@@ -14,8 +14,8 @@ body{
   font-family:'Segoe UI',Tahoma,Verdana,sans-serif;
   color:#fff;
   background:
-    radial-gradient(circle at top, #2a2a2a 0%, #121212 60%),
-    linear-gradient(135deg, #151515 0%, #0f0f0f 100%);
+    radial-gradient(circle at top, #3a3a3a 0%, #1a1a1a 55%),
+    linear-gradient(180deg, #1a1a1a 0%, #0e0e0e 100%);
 }
 
 h1{
@@ -58,12 +58,13 @@ h1{
   font-size:30px;
   font-weight:bold;
   text-align:center;
-  background:#1b1b1b;
+  background:#202020;
+  box-shadow:inset 0 0 14px rgba(0,0,0,0.7);
 }
 
 .status-low{ color:#4da6ff; }
-.status-ok{ color:#33cc33; }
-.status-high{ color:#ff4d4d; }
+.status-ok{ color:#33ff66; }
+.status-high{ color:#ff5555; }
 
 .panel{
   display:grid;
@@ -75,10 +76,13 @@ h1{
 }
 
 .gauge{
-  background:linear-gradient(180deg,#1f1f1f,#151515);
+  background:linear-gradient(180deg,#242424,#161616);
   border-radius:28px;
   padding:18px;
   text-align:center;
+  box-shadow:
+    inset 0 0 18px rgba(255,255,255,0.03),
+    0 8px 30px rgba(0,0,0,0.7);
 }
 
 .big{ transform:scale(1.15); }
@@ -106,10 +110,10 @@ button,select{
   height:130px;
   margin-top:10px;
   border-radius:12px;
-  background:#111;
+  background:linear-gradient(180deg,#0f0f0f,#1b1b1b);
+  box-shadow:inset 0 0 10px rgba(0,0,0,0.8);
 }
 
-/* MOBIL */
 @media(max-width:900px){
   h1{ font-size:26px; margin:15px; }
   #temp-status{ font-size:24px; margin:15px; }
@@ -201,9 +205,29 @@ const sounds={
   high:document.getElementById("sound-high")
 };
 
-const gaugeLeft=new JustGage({id:"gauge-left",min:0,max:100,value:0});
-const gaugeCenter=new JustGage({id:"gauge-center",min:0,max:120,value:0});
-const gaugeRight=new JustGage({id:"gauge-right",min:-30,max:40,value:0,decimals:1});
+const gaugeLeft=new JustGage({
+  id:"gauge-left",
+  min:0,max:100,value:0,
+  label:"%",
+  valueFontColor:"#fff",
+  labelFontColor:"#fff"
+});
+
+const gaugeCenter=new JustGage({
+  id:"gauge-center",
+  min:0,max:120,value:0,
+  label:"°C",
+  valueFontColor:"#fff",
+  labelFontColor:"#fff"
+});
+
+const gaugeRight=new JustGage({
+  id:"gauge-right",
+  min:-30,max:40,value:0,decimals:1,
+  label:"°C",
+  valueFontColor:"#fff",
+  labelFontColor:"#fff"
+});
 
 function setOnline(ok){
   online.textContent=ok?"ONLINE":"OFFLINE";
@@ -225,58 +249,7 @@ function testAlarm(){ playSound("alarm"); }
 function drawGraph(){
   ctx.clearRect(0,0,graph.width,graph.height);
   if(history.length<2)return;
-  ctx.strokeStyle="#33cc33";
+  ctx.strokeStyle="#33ff66";
+  ctx.lineWidth=2;
   ctx.beginPath();
-  history.forEach((v,i)=>{
-    let x=i*(graph.width/(history.length-1));
-    let y=graph.height-(v/120*graph.height);
-    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
-  });
-  ctx.stroke();
-}
-
-async function load(){
-  try{
-    const d1=await(await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`)).json();
-    setOnline(true);
-
-    let t=parseFloat(d1[`field${FIELD_CENTER}`]);
-    let w=parseFloat(d1[`field${FIELD_LEFT}`]);
-
-    if(!isNaN(t)){
-      gaugeCenter.refresh(t);
-      trend.textContent=lastTemp? t>lastTemp?"🔼":t<lastTemp?"🔽":"➖":"➖";
-
-      status.className="";
-      if(t<minTemp){ status.textContent="Nízká teplota"; status.classList.add("status-low"); }
-      else if(t>maxTemp){ status.textContent="Vysoká teplota"; status.classList.add("status-high"); }
-      else{ status.textContent="Ideální teplota"; status.classList.add("status-ok"); }
-
-      lastTemp=t;
-      history.push(t); if(history.length>20)history.shift();
-      drawGraph();
-    }
-
-    if(!isNaN(w)) gaugeLeft.refresh(w);
-
-    const d2=await(await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`)).json();
-    let o=parseFloat(d2[`field${FIELD_RIGHT}`]);
-    if(!isNaN(o)) gaugeRight.refresh(o);
-
-  }catch{
-    setOnline(false);
-  }
-}
-
-fsBtn.onclick=()=>{
-  if(!document.fullscreenElement) document.documentElement.requestFullscreen();
-  else document.exitFullscreen();
-};
-
-setInterval(load,15000);
-setInterval(()=>clock.textContent=new Date().toLocaleTimeString("cs-CZ"),1000);
-load();
-</script>
-
-</body>
-</html>
+  history.forEach((v,
