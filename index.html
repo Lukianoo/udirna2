@@ -5,8 +5,12 @@
 <title>Panel udírny</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<!-- JustGage -->
 <script src="https://cdn.jsdelivr.net/npm/raphael@2.3.0/raphael.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/justgage@1.4.0/justgage.min.js"></script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body {
@@ -14,8 +18,9 @@ body {
   font-family: Segoe UI, Tahoma, sans-serif;
   background: #121212;
   color: #fff;
-  transition: background 0.5s;
+  transition: background 0.4s;
 }
+
 h1.header {
   display: flex;
   justify-content: space-between;
@@ -23,11 +28,12 @@ h1.header {
   margin: 20px 40px;
   font-size: 34px;
 }
+
 #clock { font-size: 20px; opacity: 0.8; }
 
 #temp-status {
   text-align: center;
-  font-size: 34px;
+  font-size: 32px;
   font-weight: bold;
   margin: 0 40px 20px;
   padding: 12px;
@@ -59,16 +65,24 @@ h1.header {
 .gauge.big { transform: scale(1.15); }
 .label { opacity:0.85; }
 
+.history {
+  max-width: 1400px;
+  margin: 40px auto;
+  padding: 0 40px;
+}
+
 .alarm-settings {
   text-align:center;
   margin:30px 0;
 }
+
 .alarm-settings input,
 .alarm-settings select {
   width:70px;
   font-size:16px;
   margin:0 5px;
 }
+
 .alarm-settings button {
   margin-left:10px;
   padding:6px 14px;
@@ -118,16 +132,23 @@ footer {
   </div>
 </div>
 
+<div class="history">
+  <div class="gauge">
+    <h2>📈 Historie teploty – posledních 10 hodin</h2>
+    <canvas id="historyChart" height="120"></canvas>
+  </div>
+</div>
+
 <div class="alarm-settings">
 Min <input id="alarm-min" type="number"> °C
 <select id="alarm-sound-min">
-<option value="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg">Alarm</option>
-<option value="https://actions.google.com/sounds/v1/alarms/beep_short.ogg">Beep</option>
+  <option value="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg">Alarm</option>
+  <option value="https://actions.google.com/sounds/v1/alarms/beep_short.ogg">Beep</option>
 </select>
 Max <input id="alarm-max" type="number"> °C
 <select id="alarm-sound-max">
-<option value="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg">Alarm</option>
-<option value="https://actions.google.com/sounds/v1/alarms/beep_short.ogg">Beep</option>
+  <option value="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg">Alarm</option>
+  <option value="https://actions.google.com/sounds/v1/alarms/beep_short.ogg">Beep</option>
 </select>
 <button onclick="saveAlarm()">Uložit</button>
 <button onclick="testAlarm()">Test</button>
@@ -140,19 +161,32 @@ Max <input id="alarm-max" type="number"> °C
 </footer>
 
 <script>
+/* ====== KONFIG ====== */
 const CHANNEL_MAIN = "260804";
 const CHANNEL_OUT = "231269";
 
-const gaugeLeft = new JustGage({id:"gauge-left",min:0,max:100,value:0});
+/* ====== GAUGE ====== */
+const gaugeLeft   = new JustGage({id:"gauge-left",min:0,max:100,value:0});
 const gaugeCenter = new JustGage({id:"gauge-center",min:0,max:120,value:0});
-const gaugeRight = new JustGage({id:"gauge-right",min:-30,max:40,value:0});
+const gaugeRight  = new JustGage({id:"gauge-right",min:-30,max:40,value:0});
 
+/* ====== ALARM ====== */
 let alarmActive = false;
 let alarmMin = 0;
 let alarmMax = 120;
 let alarmSoundMin, alarmSoundMax;
 
-function loadSaved() {
+/* ====== GRAF ====== */
+let historyChart = null;
+
+/* ====== ELEMENTY ====== */
+const alarmMinInput = document.getElementById("alarm-min");
+const alarmMaxInput = document.getElementById("alarm-max");
+const alarmSoundMinSelect = document.getElementById("alarm-sound-min");
+const alarmSoundMaxSelect = document.getElementById("alarm-sound-max");
+
+/* ====== ALARM STORAGE ====== */
+function loadSavedAlarm() {
   const s = localStorage.getItem("alarm");
   if (!s) return;
   const a = JSON.parse(s);
@@ -166,18 +200,14 @@ function loadSaved() {
   alarmSoundMaxSelect.value = alarmSoundMax;
 }
 
-const alarmMinInput = document.getElementById("alarm-min");
-const alarmMaxInput = document.getElementById("alarm-max");
-const alarmSoundMinSelect = document.getElementById("alarm-sound-min");
-const alarmSoundMaxSelect = document.getElementById("alarm-sound-max");
-
 function saveAlarm() {
   alarmMin = +alarmMinInput.value;
   alarmMax = +alarmMaxInput.value;
   alarmSoundMin = alarmSoundMinSelect.value;
   alarmSoundMax = alarmSoundMaxSelect.value;
   localStorage.setItem("alarm", JSON.stringify({
-    min:alarmMin,max:alarmMax,smin:alarmSoundMin,smax:alarmSoundMax
+    min:alarmMin, max:alarmMax,
+    smin:alarmSoundMin, smax:alarmSoundMax
   }));
 }
 
@@ -187,9 +217,10 @@ function play(sound) {
 
 function testAlarm() {
   play(alarmSoundMin);
-  setTimeout(()=>play(alarmSoundMax),1000);
+  setTimeout(()=>play(alarmSoundMax), 1000);
 }
 
+/* ====== DATA ====== */
 async function loadData() {
   try {
     const r1 = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_MAIN}/feeds/last.json`);
@@ -215,29 +246,91 @@ async function loadData() {
       st.innerText = "Nízká teplota";
       st.classList.add("status-low");
       document.body.style.background="#001a33";
-      if (!alarmActive) { play(alarmSoundMin); alarmActive=true; }
+      if (!alarmActive) { play(alarmSoundMin); alarmActive = true; }
     }
     else if (temp > alarmMax) {
       st.innerText = "Vysoká teplota!";
       st.classList.add("status-high");
       document.body.style.background="#2b0000";
-      if (!alarmActive) { play(alarmSoundMax); alarmActive=true; }
+      if (!alarmActive) { play(alarmSoundMax); alarmActive = true; }
     }
     else {
       st.innerText = "Ideální teplota";
       st.classList.add("status-ok");
       document.body.style.background="#121212";
-      alarmActive=false;
+      alarmActive = false;
     }
-  }
-  catch {
-    document.getElementById("temp-status").innerText="⚠️ Data nedostupná";
-    alarmActive=false;
+
+  } catch {
+    document.getElementById("temp-status").innerText = "⚠️ Data nedostupná";
+    alarmActive = false;
   }
 }
 
+/* ====== HISTORIE 10 h ====== */
+async function loadHistory() {
+  try {
+    const res = await fetch(
+      `https://api.thingspeak.com/channels/${CHANNEL_MAIN}/feeds.json?results=600`
+    );
+    const data = await res.json();
+
+    const labels = [];
+    const values = [];
+
+    data.feeds.forEach(f => {
+      if (f.field1) {
+        labels.push(new Date(f.created_at).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"}));
+        values.push(parseFloat(f.field1));
+      }
+    });
+
+    renderChart(labels, values);
+  } catch {
+    console.warn("Historie se nepodařila načíst");
+  }
+}
+
+function renderChart(labels, values) {
+  const ctx = document.getElementById("historyChart").getContext("2d");
+
+  if (historyChart) {
+    historyChart.data.labels = labels;
+    historyChart.data.datasets[0].data = values;
+    historyChart.update();
+    return;
+  }
+
+  historyChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "Teplota [°C]",
+        data: values,
+        borderWidth: 2,
+        tension: 0.25,
+        pointRadius: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { labels: { color:"#fff" } }
+      },
+      scales: {
+        x: { ticks: { color:"#ccc" }, grid:{color:"#333"} },
+        y: { ticks: { color:"#ccc" }, grid:{color:"#333"} }
+      }
+    }
+  });
+}
+
+/* ====== OSTATNÍ ====== */
 function toggleFull() {
-  document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+  document.fullscreenElement
+    ? document.exitFullscreen()
+    : document.documentElement.requestFullscreen();
 }
 
 function clock() {
@@ -245,12 +338,17 @@ function clock() {
     new Date().toLocaleTimeString("cs-CZ");
 }
 
-loadSaved();
+/* ====== START ====== */
+loadSavedAlarm();
 loadData();
-setInterval(loadData,15000);
+loadHistory();
+
+setInterval(loadData, 15000);
+setInterval(loadHistory, 300000); // 5 minut
 clock();
-setInterval(clock,1000);
+setInterval(clock, 1000);
 </script>
 
 </body>
 </html>
+
