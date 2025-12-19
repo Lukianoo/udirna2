@@ -20,7 +20,6 @@ body {
   color: #fff;
   transition: background 0.4s;
 }
-
 h1.header {
   display: flex;
   justify-content: space-between;
@@ -28,9 +27,7 @@ h1.header {
   margin: 20px 40px;
   font-size: 34px;
 }
-
 #clock { font-size: 20px; opacity: 0.8; }
-
 #temp-status {
   text-align: center;
   font-size: 32px;
@@ -40,7 +37,6 @@ h1.header {
   border-radius: 12px;
   background: linear-gradient(90deg,#222,#333);
 }
-
 .status-low { color:#3399ff; }
 .status-ok { color:#33cc33; }
 .status-high { color:#ff3333; }
@@ -53,7 +49,6 @@ h1.header {
   max-width: 1400px;
   margin: auto;
 }
-
 .gauge {
   background: #1e1e1e;
   border-radius: 25px;
@@ -61,7 +56,6 @@ h1.header {
   text-align: center;
   box-shadow: 0 4px 25px rgba(0,0,0,0.6);
 }
-
 .gauge.big { transform: scale(1.15); }
 .label { opacity:0.85; }
 
@@ -75,14 +69,12 @@ h1.header {
   text-align:center;
   margin:30px 0;
 }
-
 .alarm-settings input,
 .alarm-settings select {
   width:70px;
   font-size:16px;
   margin:0 5px;
 }
-
 .alarm-settings button {
   margin-left:10px;
   padding:6px 14px;
@@ -94,7 +86,6 @@ footer {
   opacity:0.6;
   margin:20px;
 }
-
 #fullscreen-btn {
   position:fixed;
   bottom:20px;
@@ -102,14 +93,12 @@ footer {
   padding:10px 18px;
   font-size:16px;
 }
-
 @media (max-width: 900px) {
   .panel { grid-template-columns:1fr; }
   .gauge.big { transform:scale(1); }
 }
 </style>
 </head>
-
 <body>
 
 <h1 class="header">🔥 Panel udírny <span id="clock">--:--:--</span></h1>
@@ -154,38 +143,38 @@ Max <input id="alarm-max" type="number"> °C
 <button onclick="testAlarm()">Test</button>
 </div>
 
-<button id="fullscreen-btn" onclick="toggleFull()">Full</button>
+<button id="fullscreen-btn" type="button" onclick="toggleFull()">Full Screen</button>
 
 <footer>
 <div id="update-time">---</div>
 </footer>
 
 <script>
-/* ====== KONFIG ====== */
+/* ===== KONFIG ===== */
 const CHANNEL_MAIN = "260804";
 const CHANNEL_OUT = "231269";
 
-/* ====== GAUGE ====== */
+/* ===== GAUGE ===== */
 const gaugeLeft   = new JustGage({id:"gauge-left",min:0,max:100,value:0});
 const gaugeCenter = new JustGage({id:"gauge-center",min:0,max:120,value:0});
 const gaugeRight  = new JustGage({id:"gauge-right",min:-30,max:40,value:0});
 
-/* ====== ALARM ====== */
+/* ===== ALARM ===== */
 let alarmActive = false;
 let alarmMin = 0;
 let alarmMax = 120;
 let alarmSoundMin, alarmSoundMax;
 
-/* ====== GRAF ====== */
+/* ===== GRAF ===== */
 let historyChart = null;
 
-/* ====== ELEMENTY ====== */
+/* ===== ELEMENTY ===== */
 const alarmMinInput = document.getElementById("alarm-min");
 const alarmMaxInput = document.getElementById("alarm-max");
 const alarmSoundMinSelect = document.getElementById("alarm-sound-min");
 const alarmSoundMaxSelect = document.getElementById("alarm-sound-max");
 
-/* ====== ALARM STORAGE ====== */
+/* ===== ALARM STORAGE ===== */
 function loadSavedAlarm() {
   const s = localStorage.getItem("alarm");
   if (!s) return;
@@ -211,24 +200,16 @@ function saveAlarm() {
   }));
 }
 
-function play(sound) {
-  new Audio(sound).play();
-}
+function play(sound) { new Audio(sound).play(); }
+function testAlarm() { play(alarmSoundMin); setTimeout(()=>play(alarmSoundMax),1000); }
 
-function testAlarm() {
-  play(alarmSoundMin);
-  setTimeout(()=>play(alarmSoundMax), 1000);
-}
-
-/* ====== DATA ====== */
+/* ===== DATA ===== */
 async function loadData() {
   try {
     const r1 = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_MAIN}/feeds/last.json`);
     const d1 = await r1.json();
-
     const temp = parseFloat(d1.field1);
     const wifi = parseFloat(d1.field2);
-
     gaugeCenter.refresh(temp);
     gaugeLeft.refresh(wifi);
 
@@ -246,107 +227,89 @@ async function loadData() {
       st.innerText = "Nízká teplota";
       st.classList.add("status-low");
       document.body.style.background="#001a33";
-      if (!alarmActive) { play(alarmSoundMin); alarmActive = true; }
-    }
-    else if (temp > alarmMax) {
+      if(!alarmActive){play(alarmSoundMin);alarmActive=true;}
+    } else if (temp > alarmMax) {
       st.innerText = "Vysoká teplota!";
       st.classList.add("status-high");
       document.body.style.background="#2b0000";
-      if (!alarmActive) { play(alarmSoundMax); alarmActive = true; }
-    }
-    else {
+      if(!alarmActive){play(alarmSoundMax);alarmActive=true;}
+    } else {
       st.innerText = "Ideální teplota";
       st.classList.add("status-ok");
       document.body.style.background="#121212";
-      alarmActive = false;
+      alarmActive=false;
     }
 
   } catch {
-    document.getElementById("temp-status").innerText = "⚠️ Data nedostupná";
-    alarmActive = false;
+    document.getElementById("temp-status").innerText="⚠️ Data nedostupná";
+    alarmActive=false;
   }
 }
 
-/* ====== HISTORIE 10 h ====== */
+/* ===== HISTORIE 10 H ===== */
 async function loadHistory() {
   try {
-    const res = await fetch(
-      `https://api.thingspeak.com/channels/${CHANNEL_MAIN}/feeds.json?results=600`
-    );
+    const res = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_MAIN}/feeds.json?results=600`);
     const data = await res.json();
-
-    const labels = [];
-    const values = [];
-
-    data.feeds.forEach(f => {
-      if (f.field1) {
+    const labels = [], values = [];
+    data.feeds.forEach(f=>{
+      if(f.field1){
         labels.push(new Date(f.created_at).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"}));
         values.push(parseFloat(f.field1));
       }
     });
-
-    renderChart(labels, values);
-  } catch {
-    console.warn("Historie se nepodařila načíst");
-  }
+    renderChart(labels,values);
+  } catch { console.warn("Historie se nepodařila načíst"); }
 }
 
-function renderChart(labels, values) {
+function renderChart(labels,values){
   const ctx = document.getElementById("historyChart").getContext("2d");
-
-  if (historyChart) {
-    historyChart.data.labels = labels;
-    historyChart.data.datasets[0].data = values;
+  if(historyChart){
+    historyChart.data.labels=labels;
+    historyChart.data.datasets[0].data=values;
     historyChart.update();
     return;
   }
-
-  historyChart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels,
-      datasets: [{
-        label: "Teplota [°C]",
-        data: values,
-        borderWidth: 2,
-        tension: 0.25,
-        pointRadius: 0
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { labels: { color:"#fff" } }
-      },
-      scales: {
-        x: { ticks: { color:"#ccc" }, grid:{color:"#333"} },
-        y: { ticks: { color:"#ccc" }, grid:{color:"#333"} }
+  historyChart=new Chart(ctx,{
+    type:"line",
+    data:{labels,datasets:[{label:"Teplota [°C]",data:values,borderWidth:2,tension:0.25,pointRadius:0}]},
+    options:{
+      responsive:true,
+      plugins:{legend:{labels:{color:"#fff"}}},
+      scales:{
+        x:{ticks:{color:"#ccc"},grid:{color:"#333"}},
+        y:{ticks:{color:"#ccc"},grid:{color:"#333"}}
       }
     }
   });
 }
 
-/* ====== OSTATNÍ ====== */
-function toggleFull() {
-  document.fullscreenElement
-    ? document.exitFullscreen()
-    : document.documentElement.requestFullscreen();
+/* ===== FULLSCREEN ===== */
+function toggleFull(){
+  const doc=document,el=document.documentElement;
+  if(!doc.fullscreenElement&&!doc.webkitFullscreenElement&&!doc.mozFullScreenElement&&!doc.msFullscreenElement){
+    if(el.requestFullscreen){el.requestFullscreen();}
+    else if(el.webkitRequestFullscreen){el.webkitRequestFullscreen();}
+    else if(el.mozRequestFullScreen){el.mozRequestFullScreen();}
+    else if(el.msRequestFullscreen){el.msRequestFullscreen();}
+  } else {
+    if(doc.exitFullscreen){doc.exitFullscreen();}
+    else if(doc.webkitExitFullscreen){doc.webkitExitFullscreen();}
+    else if(doc.mozCancelFullScreen){doc.mozCancelFullScreen();}
+    else if(doc.msExitFullscreen){doc.msExitFullscreen();}
+  }
 }
 
-function clock() {
-  document.getElementById("clock").innerText =
-    new Date().toLocaleTimeString("cs-CZ");
-}
+/* ===== CLOCK ===== */
+function clock(){document.getElementById("clock").innerText=new Date().toLocaleTimeString("cs-CZ");}
 
-/* ====== START ====== */
+/* ===== START ===== */
 loadSavedAlarm();
-loadData();
-loadHistory();
+loadData(); loadHistory();
+setInterval(loadData,15000);
+setInterval(loadHistory,300000);
+clock(); setInterval(clock,1000);
 
-setInterval(loadData, 15000);
-setInterval(loadHistory, 300000); // 5 minut
-clock();
-setInterval(clock, 1000);
 </script>
 
 </body>
