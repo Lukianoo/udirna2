@@ -168,14 +168,40 @@ const maxVal=document.getElementById("maxVal");
 const trend=document.getElementById("trend");
 const status=document.getElementById("temp-status");
 
-let minTemp=parseInt(localStorage.minTemp)||75;
-let maxTemp=parseInt(localStorage.maxTemp)||85;
-let muted=localStorage.muted==="1";
-let lastTemp=null;
+/* ✅ SPRÁVNÉ NAČTENÍ */
+let minTemp = Number(localStorage.minTemp ?? 75);
+let maxTemp = Number(localStorage.maxTemp ?? 85);
 
-/* ⏱ cca 1 HODINA HISTORIE */
+let muted = localStorage.muted === "1";
+let lastTemp = null;
+
 const MAX_HISTORY = 240;
 let history=[];
+
+function updateUI(){
+  minVal.textContent=minTemp;
+  maxVal.textContent=maxTemp;
+}
+updateUI();
+
+/* ✅ ULOŽENÍ + REDRAW */
+function changeMin(v){
+  if(minTemp+v<maxTemp){
+    minTemp+=v;
+    localStorage.minTemp=minTemp;
+    updateUI();
+    drawGraph();
+  }
+}
+
+function changeMax(v){
+  if(maxTemp+v>minTemp){
+    maxTemp+=v;
+    localStorage.maxTemp=maxTemp;
+    updateUI();
+    drawGraph();
+  }
+}
 
 muteBtn.textContent=muted?"ALARM OFF":"ALARM ON";
 if(muted) muteBtn.classList.add("off");
@@ -217,22 +243,17 @@ function drawGraph(){
   const temps=history.map(h=>h.temp);
   const minG=Math.min(minTemp-5,...temps);
   const maxG=Math.max(maxTemp+5,...temps);
-
   const y=v=>graph.height-(v-minG)/(maxG-minG)*graph.height;
 
-  /* 🟦 pod MIN */
   ctx.fillStyle="rgba(77,166,255,0.15)";
   ctx.fillRect(0,y(minTemp),graph.width,y(minG)-y(minTemp));
 
-  /* 🟩 ideál */
   ctx.fillStyle="rgba(51,255,102,0.12)";
   ctx.fillRect(0,y(maxTemp),graph.width,y(minTemp)-y(maxTemp));
 
-  /* 🟥 nad MAX */
   ctx.fillStyle="rgba(255,85,85,0.15)";
   ctx.fillRect(0,0,graph.width,y(maxTemp));
 
-  /* 🎯 cílová teplota */
   const target=(minTemp+maxTemp)/2;
   ctx.strokeStyle="#fff";
   ctx.setLineDash([6,6]);
@@ -242,7 +263,6 @@ function drawGraph(){
   ctx.stroke();
   ctx.setLineDash([]);
 
-  /* 📈 křivka */
   ctx.strokeStyle="#33ff66";
   ctx.lineWidth=2;
   ctx.beginPath();
