@@ -1,236 +1,167 @@
 <!DOCTYPE html>
 <html lang="cs">
 <head>
-  <meta charset="UTF-8">
-  <title>Panel udírny</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>Panel udírny</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- JustGage -->
-  <script src="https://cdn.jsdelivr.net/npm/raphael@2.3.0/raphael.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/justgage@1.4.0/justgage.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/raphael@2.3.0/raphael.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/justgage@1.4.0/justgage.min.js"></script>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #121212;
-      color: #fff;
-    }
-
-    h1.header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin: 20px 40px;
-      font-size: 36px;
-    }
-
-    #clock { font-size: 20px; opacity: 0.8; }
-
-    #temp-status {
-      text-align: center;
-      font-size: 32px;
-      font-weight: bold;
-      margin-bottom: 10px;
-      padding: 10px;
-      border-radius: 10px;
-      background: #222;
-    }
-
-    .panel {
-      display: grid;
-      grid-template-columns: 1fr 1.5fr 1fr;
-      gap: 30px;
-      padding: 20px 40px;
-      max-width: 1400px;
-      margin: auto;
-    }
-
-    .gauge {
-      background: #1e1e1e;
-      border-radius: 25px;
-      padding: 15px;
-      text-align: center;
-    }
-
-    .gauge.big { transform: scale(1.15); }
-
-    .gauge-title { font-size: 30px; }
-
-    #trend { font-size: 42px; }
-
-    .controls {
-      display: flex;
-      justify-content: space-around;
-      margin-top: 10px;
-    }
-
-    button, select {
-      font-size: 16px;
-      padding: 5px 10px;
-      margin: 3px;
-      border-radius: 6px;
-      border: none;
-      background: #333;
-      color: #fff;
-    }
-  </style>
+<style>
+body{margin:0;font-family:Segoe UI;background:#121212;color:#fff}
+h1{display:flex;justify-content:space-between;align-items:center;margin:20px 40px;font-size:36px}
+.panel{display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:30px;padding:20px 40px}
+.gauge{background:#1e1e1e;border-radius:25px;padding:15px;text-align:center}
+.big{transform:scale(1.15)}
+button,select{background:#333;color:#fff;border:none;border-radius:6px;padding:6px 10px;margin:3px}
+#trend{font-size:40px}
+#graph{width:100%;height:120px;background:#111;border-radius:10px;margin-top:10px}
+.kiosk .controls,.kiosk button,.kiosk select{display:none}
+</style>
 </head>
 
 <body>
 
-<h1 class="header">
-  🔥 Panel udírny
-  <span>
-    <button id="fullscreenBtn">⛶ Fullscreen</button>
-    <span id="clock">--:--:--</span>
-  </span>
+<h1>
+🔥 Panel udírny
+<span>
+<button id="kioskBtn">🔒 KIOSK</button>
+<button id="fullscreenBtn">⛶</button>
+<span id="clock"></span>
+</span>
 </h1>
-
-<div id="temp-status">Čekám na data…</div>
 
 <div class="panel">
 
-  <div class="gauge">
-    <div id="gauge-left" style="height:240px;"></div>
-    WiFi signál [%]
-  </div>
+<div class="gauge">
+<div id="gauge-left" style="height:240px"></div>
+WiFi [%]
+</div>
 
-  <div class="gauge big">
-    <div class="gauge-title">Teplota v udírně</div>
-    <div id="trend">➖</div>
-    <div id="gauge-center" style="height:260px;"></div>
+<div class="gauge big">
+<div>Teplota v udírně</div>
+<div id="trend">➖</div>
+<div id="gauge-center" style="height:240px"></div>
 
-    <div class="controls">
-      <div>
-        MIN <span id="minVal">75</span>°C<br>
-        <button onclick="changeMin(-1)">−</button>
-        <button onclick="changeMin(1)">+</button><br>
-        <select id="minSound">
-          <option value="low">Nízký tón</option>
-          <option value="alarm">Alarm</option>
-        </select>
-      </div>
+<canvas id="graph"></canvas>
 
-      <div>
-        MAX <span id="maxVal">85</span>°C<br>
-        <button onclick="changeMax(-1)">−</button>
-        <button onclick="changeMax(1)">+</button><br>
-        <select id="maxSound">
-          <option value="alarm">Alarm</option>
-          <option value="high">Vysoký tón</option>
-        </select>
-      </div>
-    </div>
+<div class="controls">
+<div>
+MIN <span id="minVal"></span>°C<br>
+<button onclick="changeMin(-1)">−</button>
+<button onclick="changeMin(1)">+</button><br>
+<select id="minSound">
+<option value="low">Nízký tón</option>
+<option value="alarm">Alarm</option>
+</select>
+</div>
 
-    <button onclick="testAlarm()">🔊 Test alarmu</button>
-  </div>
+<div>
+MAX <span id="maxVal"></span>°C<br>
+<button onclick="changeMax(-1)">−</button>
+<button onclick="changeMax(1)">+</button><br>
+<select id="maxSound">
+<option value="alarm">Alarm</option>
+<option value="high">Vysoký tón</option>
+</select>
+</div>
+</div>
 
-  <div class="gauge">
-    <div id="gauge-right" style="height:240px;"></div>
-    Venkovní teplota [°C]
-  </div>
+<button onclick="testAlarm()">🔊 Test alarmu</button>
+</div>
+
+<div class="gauge">
+<div id="gauge-right" style="height:240px"></div>
+Venkovní °C
+</div>
 
 </div>
 
-<!-- Zvuky -->
 <audio id="sound-low" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
 <audio id="sound-alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
 <audio id="sound-high" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
-  const CHANNEL_LEFT_CENTER = "260804";
-  const CHANNEL_RIGHT = "231269";
-  const FIELD_CENTER = 1, FIELD_LEFT = 2, FIELD_RIGHT = 4;
+const CHANNEL_LEFT_CENTER="260804",CHANNEL_RIGHT="231269";
+const FIELD_CENTER=1,FIELD_LEFT=2,FIELD_RIGHT=4;
 
-  let minTemp = 75, maxTemp = 85, lastTemp = null, alarmState = "OK";
+let minTemp=parseInt(localStorage.minTemp)||75;
+let maxTemp=parseInt(localStorage.maxTemp)||85;
+let lastTemp=null,alarmState="OK";
+let history=[];
 
-  const minVal = document.getElementById("minVal");
-  const maxVal = document.getElementById("maxVal");
-  const trend = document.getElementById("trend");
-  const clock = document.getElementById("clock");
+const minVal=document.getElementById("minVal");
+const maxVal=document.getElementById("maxVal");
+const trend=document.getElementById("trend");
+const minSound=document.getElementById("minSound");
+const maxSound=document.getElementById("maxSound");
+const graph=document.getElementById("graph");
+const ctx=graph.getContext("2d");
 
-  const sounds = {
-    low: document.getElementById("sound-low"),
-    alarm: document.getElementById("sound-alarm"),
-    high: document.getElementById("sound-high")
-  };
+minSound.value=localStorage.minSound||"low";
+maxSound.value=localStorage.maxSound||"alarm";
 
-  const gaugeLeft = new JustGage({
-    id: "gauge-left",
-    min: 0, max: 100, value: 0, label: "%"
-  });
+const sounds={
+low:document.getElementById("sound-low"),
+alarm:document.getElementById("sound-alarm"),
+high:document.getElementById("sound-high")
+};
 
-  const gaugeCenter = new JustGage({
-    id: "gauge-center",
-    min: 0, max: 120, value: 0, label: "°C"
-  });
+const gaugeLeft=new JustGage({id:"gauge-left",min:0,max:100,value:0});
+const gaugeCenter=new JustGage({id:"gauge-center",min:0,max:120,value:0});
+const gaugeRight=new JustGage({id:"gauge-right",min:-30,max:40,value:0,decimals:1});
 
-  const gaugeRight = new JustGage({
-    id: "gauge-right",
-    min: -30, max: 40, value: 0, decimals: 1, label: "°C"
-  });
+function save(){localStorage.minTemp=minTemp;localStorage.maxTemp=maxTemp;
+localStorage.minSound=minSound.value;localStorage.maxSound=maxSound.value}
 
-  function changeMin(v){
-    if(minTemp + v < maxTemp){
-      minTemp += v;
-      minVal.textContent = minTemp;
-    }
-  }
+function changeMin(v){if(minTemp+v<maxTemp){minTemp+=v;save();updateUI()}}
+function changeMax(v){if(maxTemp+v>minTemp){maxTemp+=v;save();updateUI()}}
 
-  function changeMax(v){
-    if(maxTemp + v > minTemp){
-      maxTemp += v;
-      maxVal.textContent = maxTemp;
-    }
-  }
+function updateUI(){minVal.textContent=minTemp;maxVal.textContent=maxTemp}
+updateUI();
 
-  function playSound(type){
-    sounds[type].currentTime = 0;
-    sounds[type].play();
-  }
+function playSound(t){sounds[t].currentTime=0;sounds[t].play()}
+function testAlarm(){playSound(minSound.value);setTimeout(()=>playSound(maxSound.value),800)}
 
-  function testAlarm(){
-    playSound(minSound.value);
-    setTimeout(()=>playSound(maxSound.value), 1000);
-  }
+function drawGraph(){
+ctx.clearRect(0,0,graph.width,graph.height);
+if(history.length<2)return;
+ctx.strokeStyle="#33cc33";ctx.beginPath();
+history.forEach((v,i)=>{
+let x=i*(graph.width/(history.length-1));
+let y=graph.height-(v/120*graph.height);
+ctx.lineTo(x,y);
+});
+ctx.stroke();
+}
 
-  async function loadThingSpeak(){
-    const d1 = await (await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`)).json();
-    const temp = parseFloat(d1[`field${FIELD_CENTER}`]);
-    const wifi = parseFloat(d1[`field${FIELD_LEFT}`]);
+async function load(){
+const d1=await(await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`)).json();
+let t=parseFloat(d1[`field${FIELD_CENTER}`]);
+let w=parseFloat(d1[`field${FIELD_LEFT}`]);
+if(!isNaN(t)){
+gaugeCenter.refresh(t);
+trend.textContent=lastTemp? t>lastTemp?"🔼":t<lastTemp?"🔽":"➖":"➖";
+if(t<minTemp&&alarmState!=="LOW"){playSound(minSound.value);alarmState="LOW"}
+else if(t>maxTemp&&alarmState!=="HIGH"){playSound(maxSound.value);alarmState="HIGH"}
+else if(t>=minTemp&&t<=maxTemp)alarmState="OK";
+lastTemp=t;
+history.push(t);if(history.length>20)history.shift();
+drawGraph();
+}
+if(!isNaN(w))gaugeLeft.refresh(w);
 
-    if(!isNaN(temp)){
-      gaugeCenter.refresh(temp);
-      if(lastTemp !== null)
-        trend.textContent = temp > lastTemp ? "🔼" : temp < lastTemp ? "🔽" : "➖";
+const d2=await(await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`)).json();
+let o=parseFloat(d2[`field${FIELD_RIGHT}`]);
+if(!isNaN(o))gaugeRight.refresh(Math.round(o*10)/10);
+}
 
-      if(temp < minTemp && alarmState !== "LOW"){
-        playSound(minSound.value); alarmState="LOW";
-      } else if(temp > maxTemp && alarmState !== "HIGH"){
-        playSound(maxSound.value); alarmState="HIGH";
-      } else if(temp >= minTemp && temp <= maxTemp){
-        alarmState="OK";
-      }
-      lastTemp = temp;
-    }
+setInterval(load,15000);load();
+setInterval(()=>clock.textContent=new Date().toLocaleTimeString("cs-CZ"),1000);
 
-    if(!isNaN(wifi)) gaugeLeft.refresh(wifi);
-
-    const d2 = await (await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`)).json();
-    const out = parseFloat(d2[`field${FIELD_RIGHT}`]);
-    if(!isNaN(out)) gaugeRight.refresh(Math.round(out*10)/10);
-  }
-
-  loadThingSpeak();
-  setInterval(loadThingSpeak, 15000);
-  setInterval(()=>clock.textContent=new Date().toLocaleTimeString("cs-CZ"),1000);
-
-  document.getElementById("fullscreenBtn").onclick = () => {
-    document.fullscreenElement
-      ? document.exitFullscreen()
-      : document.documentElement.requestFullscreen();
-  };
+fullscreenBtn.onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+kioskBtn.onclick=()=>{document.body.classList.toggle("kiosk");document.documentElement.requestFullscreen()};
 </script>
 
 </body>
