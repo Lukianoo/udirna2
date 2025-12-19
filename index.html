@@ -233,7 +233,6 @@ muteBtn.onclick=()=>{
   muteBtn.classList.toggle("off",muted);
 };
 
-/* ===== GRAF S OSAMI ===== */
 function drawGraph(){
   ctx.clearRect(0,0,graph.width,graph.height);
   if(history.length<2) return;
@@ -261,29 +260,6 @@ function drawGraph(){
   ctx.stroke();
   ctx.setLineDash([]);
 
-  ctx.strokeStyle="rgba(255,255,255,0.15)";
-  ctx.fillStyle="#bbb";
-  ctx.font="11px Segoe UI";
-  for(let i=0;i<=4;i++){
-    let val=minG+(i*(maxG-minG)/4);
-    let yy=y(val);
-    ctx.beginPath();
-    ctx.moveTo(0,yy);
-    ctx.lineTo(graph.width,yy);
-    ctx.stroke();
-    ctx.fillText(val.toFixed(0)+"°C",4,yy-2);
-  }
-
-  const step=Math.max(1,Math.floor(history.length/4));
-  for(let i=0;i<history.length;i+=step){
-    let x=i*(graph.width/(history.length-1));
-    let t=new Date(Date.now()-(history.length-1-i)*15000);
-    ctx.fillText(
-      t.toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"}),
-      x-16,graph.height-4
-    );
-  }
-
   ctx.strokeStyle="#33ff66";
   ctx.lineWidth=2;
   ctx.beginPath();
@@ -291,6 +267,14 @@ function drawGraph(){
     let x=i*(graph.width/(history.length-1));
     i?ctx.lineTo(x,y(h.temp)):ctx.moveTo(x,y(h.temp));
   });
+  ctx.stroke();
+
+  /* === TEĎ ČÁRA === */
+  ctx.strokeStyle="rgba(255,255,255,0.6)";
+  ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(graph.width-1,0);
+  ctx.lineTo(graph.width-1,graph.height);
   ctx.stroke();
 }
 
@@ -329,9 +313,7 @@ async function load(){
 }
 
 fsBtn.onclick=()=>{
-  document.fullscreenElement
-    ? document.exitFullscreen()
-    : document.documentElement.requestFullscreen();
+  document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
 };
 
 setInterval(load,15000);
