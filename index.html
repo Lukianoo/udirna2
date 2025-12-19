@@ -59,7 +59,6 @@ h1{
   font-weight:bold;
   text-align:center;
   background:#1b1b1b;
-  box-shadow:inset 0 0 12px rgba(0,0,0,0.6);
 }
 
 .status-low{ color:#4da6ff; }
@@ -110,7 +109,7 @@ button,select{
   background:#111;
 }
 
-/* 📱 MOBIL – BEZ ZÁSAHU DO LOGIKY */
+/* MOBIL */
 @media(max-width:900px){
   h1{ font-size:26px; margin:15px; }
   #temp-status{ font-size:24px; margin:15px; }
@@ -169,6 +168,10 @@ button,select{
 
 </div>
 
+<audio id="sound-low" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+<audio id="sound-alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
+<audio id="sound-high" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+
 <script>
 const CHANNEL_LEFT_CENTER="260804",CHANNEL_RIGHT="231269";
 const FIELD_CENTER=1,FIELD_LEFT=2,FIELD_RIGHT=4;
@@ -176,6 +179,11 @@ const FIELD_CENTER=1,FIELD_LEFT=2,FIELD_RIGHT=4;
 const clock=document.getElementById("clock");
 const online=document.getElementById("online");
 const fsBtn=document.getElementById("fullscreen");
+
+const minVal=document.getElementById("minVal");
+const maxVal=document.getElementById("maxVal");
+const trend=document.getElementById("trend");
+const status=document.getElementById("temp-status");
 
 let minTemp=parseInt(localStorage.minTemp)||75;
 let maxTemp=parseInt(localStorage.maxTemp)||85;
@@ -187,6 +195,12 @@ const ctx=graph.getContext("2d");
 graph.width=graph.clientWidth;
 graph.height=graph.clientHeight;
 
+const sounds={
+  low:document.getElementById("sound-low"),
+  alarm:document.getElementById("sound-alarm"),
+  high:document.getElementById("sound-high")
+};
+
 const gaugeLeft=new JustGage({id:"gauge-left",min:0,max:100,value:0});
 const gaugeCenter=new JustGage({id:"gauge-center",min:0,max:120,value:0});
 const gaugeRight=new JustGage({id:"gauge-right",min:-30,max:40,value:0,decimals:1});
@@ -195,6 +209,18 @@ function setOnline(ok){
   online.textContent=ok?"ONLINE":"OFFLINE";
   online.className=ok?"online":"offline";
 }
+
+function updateUI(){
+  minVal.textContent=minTemp;
+  maxVal.textContent=maxTemp;
+}
+updateUI();
+
+function changeMin(v){ if(minTemp+v<maxTemp){minTemp+=v;updateUI();} }
+function changeMax(v){ if(maxTemp+v>minTemp){maxTemp+=v;updateUI();} }
+
+function playSound(t){ sounds[t].currentTime=0; sounds[t].play(); }
+function testAlarm(){ playSound("alarm"); }
 
 function drawGraph(){
   ctx.clearRect(0,0,graph.width,graph.height);
@@ -215,11 +241,28 @@ async function load(){
     setOnline(true);
 
     let t=parseFloat(d1[`field${FIELD_CENTER}`]);
+    let w=parseFloat(d1[`field${FIELD_LEFT}`]);
+
     if(!isNaN(t)){
       gaugeCenter.refresh(t);
+      trend.textContent=lastTemp? t>lastTemp?"🔼":t<lastTemp?"🔽":"➖":"➖";
+
+      status.className="";
+      if(t<minTemp){ status.textContent="Nízká teplota"; status.classList.add("status-low"); }
+      else if(t>maxTemp){ status.textContent="Vysoká teplota"; status.classList.add("status-high"); }
+      else{ status.textContent="Ideální teplota"; status.classList.add("status-ok"); }
+
+      lastTemp=t;
       history.push(t); if(history.length>20)history.shift();
       drawGraph();
     }
+
+    if(!isNaN(w)) gaugeLeft.refresh(w);
+
+    const d2=await(await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`)).json();
+    let o=parseFloat(d2[`field${FIELD_RIGHT}`]);
+    if(!isNaN(o)) gaugeRight.refresh(o);
+
   }catch{
     setOnline(false);
   }
