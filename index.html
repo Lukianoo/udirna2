@@ -17,7 +17,6 @@ body{
     radial-gradient(circle at top, #3a3a3a 0%, #1a1a1a 55%),
     linear-gradient(180deg, #1a1a1a 0%, #0e0e0e 100%);
 }
-
 h1{
   display:flex;
   justify-content:space-between;
@@ -25,13 +24,11 @@ h1{
   margin:20px 40px;
   font-size:36px;
 }
-
 #top-right{
   display:flex;
   align-items:center;
   gap:12px;
 }
-
 #online{
   padding:4px 10px;
   border-radius:8px;
@@ -48,7 +45,6 @@ h1{
   border-radius:8px;
   padding:4px 10px;
 }
-
 #muteBtn.off{ background:#7a1f1f; }
 
 #temp-status{
@@ -60,7 +56,6 @@ h1{
   text-align:center;
   background:#202020;
 }
-
 .status-low{ color:#4da6ff; }
 .status-ok{ color:#33ff66; }
 .status-high{ color:#ff5555; }
@@ -73,14 +68,12 @@ h1{
   max-width:1400px;
   margin:auto;
 }
-
 .gauge{
   background:linear-gradient(180deg,#242424,#161616);
   border-radius:28px;
   padding:18px;
   text-align:center;
 }
-
 .big{ transform:scale(1.15); }
 
 #graph{
@@ -90,14 +83,12 @@ h1{
   border-radius:12px;
   background:#111;
 }
-
 .historyBtns{
   display:flex;
   justify-content:center;
   gap:8px;
   margin-top:6px;
 }
-
 .historyBtns button{
   background:#333;
   color:#fff;
@@ -109,7 +100,11 @@ h1{
   background:#33ff66;
   color:#000;
 }
-
+.controls{
+  display:flex;
+  justify-content:space-around;
+  margin-top:10px;
+}
 @media(max-width:900px){
   h1{ font-size:26px; margin:15px; }
   #temp-status{ font-size:24px; margin:15px; }
@@ -127,7 +122,6 @@ h1{
   <span id="online" class="offline">OFFLINE</span>
   <span id="clock"></span>
   <button id="muteBtn">ALARM ON</button>
-  <button id="fullscreen">⛶</button>
 </div>
 </h1>
 
@@ -186,7 +180,6 @@ const FIELD_CENTER=1,FIELD_LEFT=2,FIELD_RIGHT=4;
 
 const clock=document.getElementById("clock");
 const online=document.getElementById("online");
-const fsBtn=document.getElementById("fullscreen");
 const muteBtn=document.getElementById("muteBtn");
 
 const minVal=document.getElementById("minVal");
@@ -194,8 +187,12 @@ const maxVal=document.getElementById("maxVal");
 const trend=document.getElementById("trend");
 const status=document.getElementById("temp-status");
 
-let minTemp=Number(localStorage.minTemp??75);
-let maxTemp=Number(localStorage.maxTemp??85);
+const sndLow=document.getElementById("sound-low");
+const sndHigh=document.getElementById("sound-high");
+const sndAlarm=document.getElementById("sound-alarm");
+
+let minTemp=Number(localStorage.minTemp ?? 75);
+let maxTemp=Number(localStorage.maxTemp ?? 85);
 let muted=localStorage.muted==="1";
 let lastTemp=null;
 
@@ -205,6 +202,8 @@ let history=[];
 function updateUI(){
   minVal.textContent=minTemp;
   maxVal.textContent=maxTemp;
+  muteBtn.textContent=muted?"ALARM OFF":"ALARM ON";
+  muteBtn.classList.toggle("off",muted);
 }
 updateUI();
 
@@ -223,17 +222,14 @@ function changeMax(v){
   }
 }
 
-muteBtn.textContent=muted?"ALARM OFF":"ALARM ON";
 muteBtn.onclick=()=>{
   muted=!muted;
   localStorage.muted=muted?"1":"0";
-  muteBtn.textContent=muted?"ALARM OFF":"ALARM ON";
-  muteBtn.classList.toggle("off",muted);
+  updateUI();
 };
 
 const graph=document.getElementById("graph");
 const ctx=graph.getContext("2d");
-
 const PAD_L=45, PAD_B=20;
 
 function resizeGraph(){
@@ -257,12 +253,12 @@ function drawGraph(){
   if(history.length<2) return;
 
   const temps=history.map(h=>h.temp);
-  const minG=Math.min(minTemp-5,...temps);
-  const maxG=Math.max(maxTemp+5,...temps);
+  let minG=Math.min(minTemp-5,...temps);
+  let maxG=Math.max(maxTemp+5,...temps);
+  if(maxG===minG) return;
 
   const W=graph.width-PAD_L;
   const H=graph.height-PAD_B;
-
   const y=v=>H-(v-minG)/(maxG-minG)*H;
 
   ctx.font="12px Segoe UI";
@@ -289,13 +285,24 @@ function drawGraph(){
   ctx.stroke();
 }
 
-const gaugeLeft=new JustGage({id:"gauge-left",min:0,max:100,value:0,valueFontColor:"#fff"});
-const gaugeCenter=new JustGage({id:"gauge-center",min:0,max:120,value:0,label:"°C",valueFontColor:"#fff"});
-const gaugeRight=new JustGage({id:"gauge-right",min:-30,max:40,value:0,decimals:1,label:"°C",valueFontColor:"#fff"});
+const gaugeLeft=new JustGage({id:"gauge-left",min:0,max:100,value:0});
+const gaugeCenter=new JustGage({id:"gauge-center",min:0,max:120,value:0,label:"°C"});
+const gaugeRight=new JustGage({id:"gauge-right",min:-30,max:40,value:0,decimals:1,label:"°C"});
+
+function play(sound){
+  if(!muted){
+    sound.currentTime=0;
+    sound.play();
+  }
+}
+
+function testAlarm(){
+  play(sndAlarm);
+}
 
 async function load(){
   try{
-    const d1=await(await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`)).json();
+    const d1=await (await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`)).json();
     online.textContent="ONLINE"; online.className="online";
 
     let t=parseFloat(d1[`field${FIELD_CENTER}`]);
@@ -306,10 +313,21 @@ async function load(){
       history.push({temp:t});
       if(history.length>MAX_HISTORY) history.shift();
       drawGraph();
+
+      if(lastTemp!==null){
+        trend.textContent = t>lastTemp ? "⬆" : t<lastTemp ? "⬇" : "➖";
+      }
+      lastTemp=t;
+
+      status.className="";
+      if(t<minTemp){ status.textContent="POD MINIMUM"; status.classList.add("status-low"); play(sndLow); }
+      else if(t>maxTemp){ status.textContent="NAD MAXIMUM"; status.classList.add("status-high"); play(sndHigh); }
+      else{ status.textContent="TEPLOTA OK"; status.classList.add("status-ok"); }
     }
+
     if(!isNaN(w)) gaugeLeft.refresh(w);
 
-    const d2=await(await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`)).json();
+    const d2=await (await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`)).json();
     let o=parseFloat(d2[`field${FIELD_RIGHT}`]);
     if(!isNaN(o)) gaugeRight.refresh(o);
 
