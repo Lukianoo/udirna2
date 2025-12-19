@@ -5,6 +5,7 @@
   <title>Panel udírny</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <!-- JustGage -->
   <script src="https://cdn.jsdelivr.net/npm/raphael@2.3.0/raphael.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/justgage@1.4.0/justgage.min.js"></script>
 
@@ -28,7 +29,7 @@
 
     #temp-status {
       text-align: center;
-      font-size: 34px;
+      font-size: 32px;
       font-weight: bold;
       margin-bottom: 10px;
       padding: 10px;
@@ -54,7 +55,7 @@
 
     .gauge.big { transform: scale(1.15); }
 
-    .gauge-title { font-size: 30px; margin-bottom: 5px; }
+    .gauge-title { font-size: 30px; }
 
     #trend { font-size: 42px; }
 
@@ -64,30 +65,11 @@
       margin-top: 10px;
     }
 
-    .control-group button {
-      font-size: 22px;
-      width: 40px;
-      height: 40px;
-      margin: 2px;
-      border-radius: 8px;
-      border: none;
-      background: #333;
-      color: #fff;
-    }
-
-    select, .test-btn {
-      margin-top: 5px;
-      padding: 5px;
+    button, select {
+      font-size: 16px;
+      padding: 5px 10px;
+      margin: 3px;
       border-radius: 6px;
-      border: none;
-      background: #333;
-      color: #fff;
-      font-size: 14px;
-    }
-
-    #fullscreen-btn {
-      padding: 8px 14px;
-      border-radius: 10px;
       border: none;
       background: #333;
       color: #fff;
@@ -100,7 +82,7 @@
 <h1 class="header">
   🔥 Panel udírny
   <span>
-    <button id="fullscreen-btn">⛶ Fullscreen</button>
+    <button id="fullscreenBtn">⛶ Fullscreen</button>
     <span id="clock">--:--:--</span>
   </span>
 </h1>
@@ -108,6 +90,7 @@
 <div id="temp-status">Čekám na data…</div>
 
 <div class="panel">
+
   <div class="gauge">
     <div id="gauge-left" style="height:240px;"></div>
     WiFi signál [%]
@@ -140,15 +123,17 @@
       </div>
     </div>
 
-    <button class="test-btn" onclick="testAlarm()">🔊 Test alarmu</button>
+    <button onclick="testAlarm()">🔊 Test alarmu</button>
   </div>
 
   <div class="gauge">
     <div id="gauge-right" style="height:240px;"></div>
     Venkovní teplota [°C]
   </div>
+
 </div>
 
+<!-- Zvuky -->
 <audio id="sound-low" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
 <audio id="sound-alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
 <audio id="sound-high" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
@@ -158,8 +143,12 @@
   const CHANNEL_RIGHT = "231269";
   const FIELD_CENTER = 1, FIELD_LEFT = 2, FIELD_RIGHT = 4;
 
-  let minTemp = 75, maxTemp = 85, lastTemp = null;
-  let alarmState = "OK";
+  let minTemp = 75, maxTemp = 85, lastTemp = null, alarmState = "OK";
+
+  const minVal = document.getElementById("minVal");
+  const maxVal = document.getElementById("maxVal");
+  const trend = document.getElementById("trend");
+  const clock = document.getElementById("clock");
 
   const sounds = {
     low: document.getElementById("sound-low"),
@@ -167,19 +156,33 @@
     high: document.getElementById("sound-high")
   };
 
-  const gaugeLeft = new JustGage({ id:"gauge-left", min:0, max:100, value:0 });
-  const gaugeCenter = new JustGage({ id:"gauge-center", min:0, max:120, value:0 });
-  const gaugeRight = new JustGage({ id:"gauge-right", min:-30, max:40, value:0, decimals:1 });
+  const gaugeLeft = new JustGage({
+    id: "gauge-left",
+    min: 0, max: 100, value: 0, label: "%"
+  });
+
+  const gaugeCenter = new JustGage({
+    id: "gauge-center",
+    min: 0, max: 120, value: 0, label: "°C"
+  });
+
+  const gaugeRight = new JustGage({
+    id: "gauge-right",
+    min: -30, max: 40, value: 0, decimals: 1, label: "°C"
+  });
 
   function changeMin(v){
-    if(minTemp + v < maxTemp){ minTemp += v; updateUI(); }
+    if(minTemp + v < maxTemp){
+      minTemp += v;
+      minVal.textContent = minTemp;
+    }
   }
+
   function changeMax(v){
-    if(maxTemp + v > minTemp){ maxTemp += v; updateUI(); }
-  }
-  function updateUI(){
-    minVal.textContent = minTemp;
-    maxVal.textContent = maxTemp;
+    if(maxTemp + v > minTemp){
+      maxTemp += v;
+      maxVal.textContent = maxTemp;
+    }
   }
 
   function playSound(type){
@@ -195,22 +198,39 @@
   async function loadThingSpeak(){
     const d1 = await (await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`)).json();
     const temp = parseFloat(d1[`field${FIELD_CENTER}`]);
+    const wifi = parseFloat(d1[`field${FIELD_LEFT}`]);
+
     if(!isNaN(temp)){
       gaugeCenter.refresh(temp);
-      if(lastTemp!==null) trend.textContent = temp>lastTemp?"🔼":temp<lastTemp?"🔽":"➖";
-      if(temp < minTemp && alarmState!=="LOW"){ playSound(minSound.value); alarmState="LOW"; }
-      else if(temp > maxTemp && alarmState!=="HIGH"){ playSound(maxSound.value); alarmState="HIGH"; }
-      else if(temp>=minTemp && temp<=maxTemp){ alarmState="OK"; }
+      if(lastTemp !== null)
+        trend.textContent = temp > lastTemp ? "🔼" : temp < lastTemp ? "🔽" : "➖";
+
+      if(temp < minTemp && alarmState !== "LOW"){
+        playSound(minSound.value); alarmState="LOW";
+      } else if(temp > maxTemp && alarmState !== "HIGH"){
+        playSound(maxSound.value); alarmState="HIGH";
+      } else if(temp >= minTemp && temp <= maxTemp){
+        alarmState="OK";
+      }
       lastTemp = temp;
     }
-    gaugeLeft.refresh(parseFloat(d1[`field${FIELD_LEFT}`]));
+
+    if(!isNaN(wifi)) gaugeLeft.refresh(wifi);
+
     const d2 = await (await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`)).json();
-    gaugeRight.refresh(Math.round(parseFloat(d2[`field${FIELD_RIGHT}`])*10)/10);
+    const out = parseFloat(d2[`field${FIELD_RIGHT}`]);
+    if(!isNaN(out)) gaugeRight.refresh(Math.round(out*10)/10);
   }
 
-  loadThingSpeak(); setInterval(loadThingSpeak,15000);
+  loadThingSpeak();
+  setInterval(loadThingSpeak, 15000);
   setInterval(()=>clock.textContent=new Date().toLocaleTimeString("cs-CZ"),1000);
-  fullscreen-btn.onclick=()=>!document.fullscreenElement?document.documentElement.requestFullscreen():document.exitFullscreen();
+
+  document.getElementById("fullscreenBtn").onclick = () => {
+    document.fullscreenElement
+      ? document.exitFullscreen()
+      : document.documentElement.requestFullscreen();
+  };
 </script>
 
 </body>
