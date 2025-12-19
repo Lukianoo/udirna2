@@ -162,52 +162,27 @@ const clock=document.getElementById("clock");
 const online=document.getElementById("online");
 const fsBtn=document.getElementById("fullscreen");
 const muteBtn=document.getElementById("muteBtn");
-
-const minVal=document.getElementById("minVal");
-const maxVal=document.getElementById("maxVal");
 const trend=document.getElementById("trend");
 const status=document.getElementById("temp-status");
+const minVal=document.getElementById("minVal");
+const maxVal=document.getElementById("maxVal");
 
-let minTemp=Number(localStorage.minTemp ?? 75);
-let maxTemp=Number(localStorage.maxTemp ?? 85);
-let muted=localStorage.muted==="1";
-let lastTemp=null;
+let minTemp=75, maxTemp=85;
+let muted=false, lastTemp=null;
+let history=[];
 
-const MAX_HISTORY=240; // cca 1 hodina
-let history=[]; // {time,temp}
-
-function updateUI(){
-  minVal.textContent=minTemp;
-  maxVal.textContent=maxTemp;
-}
-updateUI();
-
-function changeMin(v){
-  if(minTemp+v<maxTemp){
-    minTemp+=v;
-    localStorage.minTemp=minTemp;
-    updateUI();
-    drawGraph();
-  }
-}
-function changeMax(v){
-  if(maxTemp+v>minTemp){
-    maxTemp+=v;
-    localStorage.maxTemp=maxTemp;
-    updateUI();
-    drawGraph();
-  }
-}
-
-muteBtn.textContent=muted?"ALARM OFF":"ALARM ON";
-if(muted) muteBtn.classList.add("off");
-
-muteBtn.onclick=()=>{
-  muted=!muted;
-  localStorage.muted=muted?"1":"0";
-  muteBtn.textContent=muted?"ALARM OFF":"ALARM ON";
-  muteBtn.classList.toggle("off",muted);
-};
+const gaugeLeft = new JustGage({
+  id:"gauge-left", min:0, max:100, value:0,
+  valueFontColor:"#fff", labelFontColor:"#fff"
+});
+const gaugeCenter = new JustGage({
+  id:"gauge-center", min:0, max:120, value:0,
+  label:"°C", valueFontColor:"#fff", labelFontColor:"#fff"
+});
+const gaugeRight = new JustGage({
+  id:"gauge-right", min:-30, max:40, value:0, decimals:1,
+  label:"°C", valueFontColor:"#fff", labelFontColor:"#fff"
+});
 
 const graph=document.getElementById("graph");
 const ctx=graph.getContext("2d");
@@ -217,37 +192,10 @@ graph.height=graph.clientHeight;
 function drawGraph(){
   ctx.clearRect(0,0,graph.width,graph.height);
   if(history.length<2) return;
-
-  const temps=history.map(h=>h.temp);
-  const minG=Math.min(minTemp-5,...temps);
-  const maxG=Math.max(maxTemp+5,...temps);
+  const minG=Math.min(...history.map(h=>h.temp))-2;
+  const maxG=Math.max(...history.map(h=>h.temp))+2;
   const y=v=>graph.height-(v-minG)/(maxG-minG)*graph.height;
 
-  /* 🔹 teplotní mřížka */
-  ctx.strokeStyle="rgba(255,255,255,0.15)";
-  ctx.fillStyle="#bbb";
-  ctx.font="11px Segoe UI";
-
-  for(let i=0;i<=4;i++){
-    let val=minG+(i*(maxG-minG)/4);
-    let yy=y(val);
-    ctx.beginPath();
-    ctx.moveTo(0,yy);
-    ctx.lineTo(graph.width,yy);
-    ctx.stroke();
-    ctx.fillText(val.toFixed(0)+"°C",5,yy-2);
-  }
-
-  /* 🔹 časová osa */
-  ctx.fillStyle="#aaa";
-  const step=Math.floor(history.length/4);
-  for(let i=0;i<history.length;i+=step||1){
-    let x=i*(graph.width/(history.length-1));
-    let t=new Date(history[i].time).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});
-    ctx.fillText(t,x-18,graph.height-5);
-  }
-
-  /* 🔹 křivka */
   ctx.strokeStyle="#33ff66";
   ctx.lineWidth=2;
   ctx.beginPath();
@@ -258,9 +206,9 @@ function drawGraph(){
   ctx.stroke();
 }
 
-function playSound(type){
+function playSound(id){
   if(muted) return;
-  document.getElementById("sound-"+type).play();
+  document.getElementById("sound-"+id).play();
 }
 
 function testAlarm(){ playSound("alarm"); }
@@ -274,12 +222,19 @@ async function load(){
     let w=parseFloat(d1[`field${FIELD_LEFT}`]);
 
     if(!isNaN(t)){
+      gaugeCenter.refresh(t);
       trend.textContent=lastTemp? t>lastTemp?"🔼":t<lastTemp?"🔽":"➖":"➖";
       lastTemp=t;
-      history.push({time:Date.now(),temp:t});
-      if(history.length>MAX_HISTORY) history.shift();
+      history.push({temp:t});
+      if(history.length>60) history.shift();
       drawGraph();
     }
+    if(!isNaN(w)) gaugeLeft.refresh(w);
+
+    const d2=await(await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`)).json();
+    let o=parseFloat(d2[`field${FIELD_RIGHT}`]);
+    if(!isNaN(o)) gaugeRight.refresh(o);
+
   }catch{
     online.textContent="OFFLINE"; online.className="offline";
   }
