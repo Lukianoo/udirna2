@@ -13,119 +13,136 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body {
-  margin: 0;
-  font-family: Segoe UI, Tahoma, sans-serif;
-  background: #121212;
-  color: #fff;
-  transition: background 0.4s;
+body{
+  margin:0;
+  font-family:Segoe UI,Tahoma,sans-serif;
+  background:#121212;
+  color:#fff;
+  transition:background .4s;
+  overflow:hidden; /* fullscreen bez scrollu */
 }
-h1.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 20px 40px;
-  font-size: 34px;
+h1.header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin:15px 30px;
+  font-size:32px;
 }
-#clock { font-size: 20px; opacity: 0.8; }
-#temp-status {
-  text-align: center;
-  font-size: 32px;
-  font-weight: bold;
-  margin: 0 40px 20px;
-  padding: 12px;
-  border-radius: 12px;
-  background: linear-gradient(90deg,#222,#333);
-}
-.status-low { color:#3399ff; }
-.status-ok { color:#33cc33; }
-.status-high { color:#ff3333; }
+#clock{font-size:18px;opacity:.8}
 
-.panel {
-  display: grid;
-  grid-template-columns: 1fr 1.5fr 1fr;
-  gap: 30px;
-  padding: 20px 40px;
-  max-width: 1400px;
-  margin: auto;
-}
-.gauge {
-  background: #1e1e1e;
-  border-radius: 25px;
-  padding: 15px;
-  text-align: center;
-  box-shadow: 0 4px 25px rgba(0,0,0,0.6);
-}
-.gauge.big { transform: scale(1.15); }
-.label { opacity:0.85; }
-
-.history {
-  max-width: 1400px;
-  margin: 40px auto;
-  padding: 0 40px;
-}
-
-.alarm-settings {
+#temp-status{
   text-align:center;
-  margin:30px 0;
+  font-size:28px;
+  font-weight:bold;
+  margin:0 30px 10px;
+  padding:10px;
+  border-radius:12px;
+  background:linear-gradient(90deg,#222,#333);
+}
+.status-low{color:#3399ff}
+.status-ok{color:#33cc33}
+.status-high{color:#ff3333}
+
+.panel{
+  display:grid;
+  grid-template-columns:1fr 1.5fr 1fr;
+  gap:20px;
+  padding:0 30px;
+  max-width:1400px;
+  margin:auto;
+}
+
+.gauge{
+  background:#1e1e1e;
+  border-radius:22px;
+  padding:12px;
+  text-align:center;
+  box-shadow:0 4px 20px rgba(0,0,0,.6);
+}
+.gauge.big{transform:scale(1.1)}
+.label{opacity:.85;font-size:14px}
+
+/* graf pod wifi */
+.history-small{
+  margin-top:10px;
+  background:#111;
+  border-radius:12px;
+  padding:6px;
+}
+.history-small canvas{
+  width:100%!important;
+  height:140px!important;
+  display:block;
+}
+
+.alarm-settings{
+  text-align:center;
+  margin:10px 0;
+  font-size:14px;
 }
 .alarm-settings input,
-.alarm-settings select {
-  width:70px;
-  font-size:16px;
-  margin:0 5px;
+.alarm-settings select{
+  width:65px;
+  font-size:14px;
 }
-.alarm-settings button {
-  margin-left:10px;
-  padding:6px 14px;
-  font-size:16px;
+.alarm-settings button{
+  padding:4px 10px;
+  font-size:14px;
+  margin-left:6px;
 }
 
-footer {
-  text-align:center;
-  opacity:0.6;
-  margin:20px;
-}
-#fullscreen-btn {
+#fullscreen-btn{
   position:fixed;
-  bottom:20px;
-  right:20px;
-  padding:10px 18px;
-  font-size:16px;
+  bottom:15px;
+  right:15px;
+  padding:8px 14px;
+  font-size:14px;
 }
-@media (max-width: 900px) {
-  .panel { grid-template-columns:1fr; }
-  .gauge.big { transform:scale(1); }
+
+footer{
+  text-align:center;
+  opacity:.6;
+  font-size:13px;
+  margin-top:6px;
+}
+
+@media(max-width:900px){
+  body{overflow:auto}
+  .panel{grid-template-columns:1fr}
+  .gauge.big{transform:scale(1)}
 }
 </style>
 </head>
+
 <body>
 
 <h1 class="header">🔥 Panel udírny <span id="clock">--:--:--</span></h1>
 <div id="temp-status">Čekám na data…</div>
 
 <div class="panel">
+
+  <!-- WIFI + GRAF -->
   <div class="gauge">
-    <div id="gauge-left" style="height:220px"></div>
+    <div id="gauge-left" style="height:200px"></div>
     <div class="label">WiFi signál [%]</div>
+
+    <div class="history-small">
+      <canvas id="historyChart"></canvas>
+    </div>
   </div>
 
+  <!-- STŘED -->
   <div class="gauge big">
-    <div id="gauge-center" style="height:280px"></div>
+    <div id="gauge-center" style="height:260px"></div>
     <div class="label">Teplota v udírně [°C]</div>
   </div>
 
+  <!-- VENEK -->
   <div class="gauge">
-    <div id="gauge-right" style="height:220px"></div>
+    <div id="gauge-right" style="height:200px"></div>
     <div class="label">Venkovní teplota [°C]</div>
   </div>
-</div>
 
-<div class="history">
-  <div class="gauge">
-    <h2>📈 Historie teploty – posledních 10 hodin</h2>
-    <canvas id="historyChart" height="120"></canvas>
-  </div>
 </div>
 
 <div class="alarm-settings">
@@ -143,127 +160,118 @@ Max <input id="alarm-max" type="number"> °C
 <button onclick="testAlarm()">Test</button>
 </div>
 
-<button id="fullscreen-btn" type="button" onclick="toggleFull()">Full Screen</button>
+<button id="fullscreen-btn" type="button" onclick="toggleFull()">Full</button>
 
 <footer>
-<div id="update-time">---</div>
+  <div id="update-time">---</div>
 </footer>
 
 <script>
-/* ===== KONFIG ===== */
-const CHANNEL_MAIN = "260804";
-const CHANNEL_OUT = "231269";
+/* ==== KONFIG ==== */
+const CHANNEL_MAIN="260804";
+const CHANNEL_OUT="231269";
 
-/* ===== GAUGE ===== */
-const gaugeLeft   = new JustGage({id:"gauge-left",min:0,max:100,value:0});
-const gaugeCenter = new JustGage({id:"gauge-center",min:0,max:120,value:0});
-const gaugeRight  = new JustGage({id:"gauge-right",min:-30,max:40,value:0});
+/* ==== GAUGE ==== */
+const gaugeLeft=new JustGage({id:"gauge-left",min:0,max:100,value:0});
+const gaugeCenter=new JustGage({id:"gauge-center",min:0,max:120,value:0});
+const gaugeRight=new JustGage({id:"gauge-right",min:-30,max:40,value:0});
 
-/* ===== ALARM ===== */
-let alarmActive = false;
-let alarmMin = 0;
-let alarmMax = 120;
-let alarmSoundMin, alarmSoundMax;
+/* ==== ALARM ==== */
+let alarmActive=false;
+let alarmMin=0,alarmMax=120;
+let alarmSoundMin,alarmSoundMax;
 
-/* ===== GRAF ===== */
-let historyChart = null;
+/* ==== GRAF ==== */
+let historyChart=null;
 
-/* ===== ELEMENTY ===== */
-const alarmMinInput = document.getElementById("alarm-min");
-const alarmMaxInput = document.getElementById("alarm-max");
-const alarmSoundMinSelect = document.getElementById("alarm-sound-min");
-const alarmSoundMaxSelect = document.getElementById("alarm-sound-max");
+/* ==== ELEMENTY ==== */
+const alarmMinInput=document.getElementById("alarm-min");
+const alarmMaxInput=document.getElementById("alarm-max");
+const alarmSoundMinSelect=document.getElementById("alarm-sound-min");
+const alarmSoundMaxSelect=document.getElementById("alarm-sound-max");
 
-/* ===== ALARM STORAGE ===== */
-function loadSavedAlarm() {
-  const s = localStorage.getItem("alarm");
-  if (!s) return;
-  const a = JSON.parse(s);
-  alarmMin = a.min;
-  alarmMax = a.max;
-  alarmSoundMin = a.smin;
-  alarmSoundMax = a.smax;
-  alarmMinInput.value = alarmMin;
-  alarmMaxInput.value = alarmMax;
-  alarmSoundMinSelect.value = alarmSoundMin;
-  alarmSoundMaxSelect.value = alarmSoundMax;
+/* ==== ALARM STORAGE ==== */
+function loadSavedAlarm(){
+  const s=localStorage.getItem("alarm");
+  if(!s)return;
+  const a=JSON.parse(s);
+  alarmMin=a.min; alarmMax=a.max;
+  alarmSoundMin=a.smin; alarmSoundMax=a.smax;
+  alarmMinInput.value=alarmMin;
+  alarmMaxInput.value=alarmMax;
+  alarmSoundMinSelect.value=alarmSoundMin;
+  alarmSoundMaxSelect.value=alarmSoundMax;
 }
-
-function saveAlarm() {
-  alarmMin = +alarmMinInput.value;
-  alarmMax = +alarmMaxInput.value;
-  alarmSoundMin = alarmSoundMinSelect.value;
-  alarmSoundMax = alarmSoundMaxSelect.value;
-  localStorage.setItem("alarm", JSON.stringify({
-    min:alarmMin, max:alarmMax,
-    smin:alarmSoundMin, smax:alarmSoundMax
+function saveAlarm(){
+  alarmMin=+alarmMinInput.value;
+  alarmMax=+alarmMaxInput.value;
+  alarmSoundMin=alarmSoundMinSelect.value;
+  alarmSoundMax=alarmSoundMaxSelect.value;
+  localStorage.setItem("alarm",JSON.stringify({
+    min:alarmMin,max:alarmMax,smin:alarmSoundMin,smax:alarmSoundMax
   }));
 }
+function play(s){new Audio(s).play()}
+function testAlarm(){play(alarmSoundMin);setTimeout(()=>play(alarmSoundMax),1000)}
 
-function play(sound) { new Audio(sound).play(); }
-function testAlarm() { play(alarmSoundMin); setTimeout(()=>play(alarmSoundMax),1000); }
-
-/* ===== DATA ===== */
-async function loadData() {
-  try {
-    const r1 = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_MAIN}/feeds/last.json`);
-    const d1 = await r1.json();
-    const temp = parseFloat(d1.field1);
-    const wifi = parseFloat(d1.field2);
+/* ==== DATA ==== */
+async function loadData(){
+  try{
+    const r1=await fetch(`https://api.thingspeak.com/channels/${CHANNEL_MAIN}/feeds/last.json`);
+    const d1=await r1.json();
+    const temp=parseFloat(d1.field1);
+    const wifi=parseFloat(d1.field2);
     gaugeCenter.refresh(temp);
     gaugeLeft.refresh(wifi);
 
-    const r2 = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_OUT}/feeds/last.json`);
-    const d2 = await r2.json();
+    const r2=await fetch(`https://api.thingspeak.com/channels/${CHANNEL_OUT}/feeds/last.json`);
+    const d2=await r2.json();
     gaugeRight.refresh(parseFloat(d2.field4));
 
-    document.getElementById("update-time").innerText =
-      "Poslední aktualizace: " + new Date(d1.created_at).toLocaleString("cs-CZ");
+    document.getElementById("update-time").innerText=
+      "Poslední aktualizace: "+new Date(d1.created_at).toLocaleString("cs-CZ");
 
-    const st = document.getElementById("temp-status");
-    st.className = "";
-
-    if (temp < alarmMin) {
-      st.innerText = "Nízká teplota";
+    const st=document.getElementById("temp-status");
+    st.className="";
+    if(temp<alarmMin){
+      st.innerText="Nízká teplota";
       st.classList.add("status-low");
       document.body.style.background="#001a33";
       if(!alarmActive){play(alarmSoundMin);alarmActive=true;}
-    } else if (temp > alarmMax) {
-      st.innerText = "Vysoká teplota!";
+    }else if(temp>alarmMax){
+      st.innerText="Vysoká teplota!";
       st.classList.add("status-high");
       document.body.style.background="#2b0000";
       if(!alarmActive){play(alarmSoundMax);alarmActive=true;}
-    } else {
-      st.innerText = "Ideální teplota";
+    }else{
+      st.innerText="Ideální teplota";
       st.classList.add("status-ok");
       document.body.style.background="#121212";
       alarmActive=false;
     }
-
-  } catch {
+  }catch{
     document.getElementById("temp-status").innerText="⚠️ Data nedostupná";
     alarmActive=false;
   }
 }
 
-/* ===== HISTORIE 10 H ===== */
-async function loadHistory() {
-  try {
-    const res = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_MAIN}/feeds.json?results=600`);
-    const data = await res.json();
-    const labels = [], values = [];
-    data.feeds.forEach(f=>{
+/* ==== HISTORIE 10H ==== */
+async function loadHistory(){
+  try{
+    const r=await fetch(`https://api.thingspeak.com/channels/${CHANNEL_MAIN}/feeds.json?results=600`);
+    const d=await r.json();
+    const labels=[],values=[];
+    d.feeds.forEach(f=>{
       if(f.field1){
         labels.push(new Date(f.created_at).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"}));
         values.push(parseFloat(f.field1));
       }
     });
     renderChart(labels,values);
-  } catch { console.warn("Historie se nepodařila načíst"); }
+  }catch{}
 }
-
 function renderChart(labels,values){
-  const ctx = document.getElementById("historyChart").getContext("2d");
+  const ctx=document.getElementById("historyChart").getContext("2d");
   if(historyChart){
     historyChart.data.labels=labels;
     historyChart.data.datasets[0].data=values;
@@ -272,46 +280,48 @@ function renderChart(labels,values){
   }
   historyChart=new Chart(ctx,{
     type:"line",
-    data:{labels,datasets:[{label:"Teplota [°C]",data:values,borderWidth:2,tension:0.25,pointRadius:0}]},
+    data:{labels,datasets:[{
+      label:"Teplota [°C]",
+      data:values,
+      borderWidth:2,
+      tension:.25,
+      pointRadius:0
+    }]},
     options:{
       responsive:true,
-      plugins:{legend:{labels:{color:"#fff"}}},
+      maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
       scales:{
-        x:{ticks:{color:"#ccc"},grid:{color:"#333"}},
-        y:{ticks:{color:"#ccc"},grid:{color:"#333"}}
+        x:{ticks:{color:"#aaa"},grid:{color:"#333"}},
+        y:{ticks:{color:"#aaa"},grid:{color:"#333"}}
       }
     }
   });
 }
 
-/* ===== FULLSCREEN ===== */
+/* ==== FULLSCREEN ==== */
 function toggleFull(){
-  const doc=document,el=document.documentElement;
-  if(!doc.fullscreenElement&&!doc.webkitFullscreenElement&&!doc.mozFullScreenElement&&!doc.msFullscreenElement){
-    if(el.requestFullscreen){el.requestFullscreen();}
-    else if(el.webkitRequestFullscreen){el.webkitRequestFullscreen();}
-    else if(el.mozRequestFullScreen){el.mozRequestFullScreen();}
-    else if(el.msRequestFullscreen){el.msRequestFullscreen();}
-  } else {
-    if(doc.exitFullscreen){doc.exitFullscreen();}
-    else if(doc.webkitExitFullscreen){doc.webkitExitFullscreen();}
-    else if(doc.mozCancelFullScreen){doc.mozCancelFullScreen();}
-    else if(doc.msExitFullscreen){doc.msExitFullscreen();}
+  const d=document,e=document.documentElement;
+  if(!d.fullscreenElement&&!d.webkitFullscreenElement){
+    e.requestFullscreen?e.requestFullscreen():e.webkitRequestFullscreen();
+  }else{
+    d.exitFullscreen?d.exitFullscreen():d.webkitExitFullscreen();
   }
 }
 
-/* ===== CLOCK ===== */
-function clock(){document.getElementById("clock").innerText=new Date().toLocaleTimeString("cs-CZ");}
+/* ==== CLOCK ==== */
+function clock(){
+  document.getElementById("clock").innerText=
+    new Date().toLocaleTimeString("cs-CZ");
+}
 
-/* ===== START ===== */
+/* ==== START ==== */
 loadSavedAlarm();
 loadData(); loadHistory();
 setInterval(loadData,15000);
 setInterval(loadHistory,300000);
 clock(); setInterval(clock,1000);
-
 </script>
 
 </body>
 </html>
-
