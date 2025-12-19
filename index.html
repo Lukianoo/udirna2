@@ -252,4 +252,56 @@ function drawGraph(){
   ctx.strokeStyle="#33ff66";
   ctx.lineWidth=2;
   ctx.beginPath();
-  history.forEach((v,
+  history.forEach((v,i)=>{
+    let x=i*(graph.width/(history.length-1));
+    let y=graph.height-(v/120*graph.height);
+    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+  });
+  ctx.stroke();
+}
+
+async function load(){
+  try{
+    const d1=await(await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`)).json();
+    setOnline(true);
+
+    let t=parseFloat(d1[`field${FIELD_CENTER}`]);
+    let w=parseFloat(d1[`field${FIELD_LEFT}`]);
+
+    if(!isNaN(t)){
+      gaugeCenter.refresh(t);
+      trend.textContent=lastTemp? t>lastTemp?"🔼":t<lastTemp?"🔽":"➖":"➖";
+
+      status.className="";
+      if(t<minTemp){ status.textContent="Nízká teplota"; status.classList.add("status-low"); }
+      else if(t>maxTemp){ status.textContent="Vysoká teplota"; status.classList.add("status-high"); }
+      else{ status.textContent="Ideální teplota"; status.classList.add("status-ok"); }
+
+      lastTemp=t;
+      history.push(t); if(history.length>20)history.shift();
+      drawGraph();
+    }
+
+    if(!isNaN(w)) gaugeLeft.refresh(w);
+
+    const d2=await(await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`)).json();
+    let o=parseFloat(d2[`field${FIELD_RIGHT}`]);
+    if(!isNaN(o)) gaugeRight.refresh(o);
+
+  }catch{
+    setOnline(false);
+  }
+}
+
+fsBtn.onclick=()=>{
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen();
+  else document.exitFullscreen();
+};
+
+setInterval(load,15000);
+setInterval(()=>clock.textContent=new Date().toLocaleTimeString("cs-CZ"),1000);
+load();
+</script>
+
+</body>
+</html>
