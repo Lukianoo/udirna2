@@ -24,19 +24,17 @@ h1{
   align-items:center;
   margin:20px 40px;
   font-size:36px;
-  gap:15px;
 }
 
 #top-right{
   display:flex;
+  gap:10px;
   align-items:center;
-  gap:12px;
 }
 
 #online{
   padding:4px 10px;
   border-radius:8px;
-  font-size:16px;
   font-weight:bold;
 }
 .online{ background:#1f7a1f; }
@@ -48,7 +46,6 @@ h1{
   border:none;
   border-radius:8px;
   padding:4px 10px;
-  font-size:16px;
 }
 
 #muteBtn.off{ background:#7a1f1f; }
@@ -85,36 +82,16 @@ h1{
 
 .big{ transform:scale(1.15); }
 
-button,select{
-  background:#333;
-  color:#fff;
-  border:none;
-  border-radius:8px;
-  padding:6px 12px;
-  margin:3px;
-  font-size:15px;
-}
-
-#trend{ font-size:42px; }
-
-.controls{
-  display:flex;
-  justify-content:space-around;
-  margin-top:8px;
-}
-
 #graph{
   width:100%;
-  height:160px;
+  height:180px;
   margin-top:10px;
   border-radius:12px;
   background:#111;
 }
 
 @media(max-width:900px){
-  h1{ font-size:26px; margin:15px; }
-  #temp-status{ font-size:24px; margin:15px; }
-  .panel{ grid-template-columns:1fr; padding:10px; }
+  .panel{ grid-template-columns:1fr; }
   .big{ transform:none; }
 }
 </style>
@@ -138,7 +115,7 @@ button,select{
 
 <div class="gauge">
   <div id="gauge-left" style="height:240px"></div>
-  WiFi signál [%]
+  WiFi [%]
 </div>
 
 <div class="gauge big">
@@ -146,32 +123,16 @@ button,select{
   <div id="trend">➖</div>
   <div id="gauge-center" style="height:240px"></div>
   <canvas id="graph"></canvas>
-
-  <div class="controls">
-    <div>
-      MIN <span id="minVal"></span>°C<br>
-      <button onclick="changeMin(-1)">−</button>
-      <button onclick="changeMin(1)">+</button>
-    </div>
-    <div>
-      MAX <span id="maxVal"></span>°C<br>
-      <button onclick="changeMax(-1)">−</button>
-      <button onclick="changeMax(1)">+</button>
-    </div>
-  </div>
-
-  <button onclick="testAlarm()">🔊 Test alarmu</button>
 </div>
 
 <div class="gauge">
   <div id="gauge-right" style="height:240px"></div>
-  Venkovní teplota [°C]
+  Venek [°C]
 </div>
 
 </div>
 
 <audio id="sound-low" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
-<audio id="sound-alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
 <audio id="sound-high" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
@@ -183,56 +144,95 @@ const online=document.getElementById("online");
 const fsBtn=document.getElementById("fullscreen");
 const muteBtn=document.getElementById("muteBtn");
 
-const minVal=document.getElementById("minVal");
-const maxVal=document.getElementById("maxVal");
-const trend=document.getElementById("trend");
-const status=document.getElementById("temp-status");
-
 let minTemp=parseInt(localStorage.minTemp)||75;
 let maxTemp=parseInt(localStorage.maxTemp)||85;
 let muted=localStorage.muted==="1";
 let lastTemp=null;
-let history=[]; // {t,temp}
+
+/* ⏱ 3 HODINY HISTORIE (15s interval) */
+const MAX_HISTORY = 720; 
+let history=[];
 
 muteBtn.textContent=muted?"ALARM OFF":"ALARM ON";
-if(muted) muteBtn.classList.add("off");
+muteBtn.classList.toggle("off",muted);
 
 const graph=document.getElementById("graph");
 const ctx=graph.getContext("2d");
 graph.width=graph.clientWidth;
 graph.height=graph.clientHeight;
 
-const sounds={
-  low:document.getElementById("sound-low"),
-  alarm:document.getElementById("sound-alarm"),
-  high:document.getElementById("sound-high")
-};
+const gaugeLeft=new JustGage({id:"gauge-left",min:0,max:100,value:0,valueFontColor:"#fff"});
+const gaugeCenter=new JustGage({id:"gauge-center",min:0,max:120,value:0,label:"°C",valueFontColor:"#fff"});
+const gaugeRight=new JustGage({id:"gauge-right",min:-30,max:40,value:0,decimals:1,label:"°C",valueFontColor:"#fff"});
 
-const gaugeLeft=new JustGage({id:"gauge-left",min:0,max:100,value:0,valueFontColor:"#fff",labelFontColor:"#fff"});
-const gaugeCenter=new JustGage({id:"gauge-center",min:0,max:120,value:0,label:"°C",valueFontColor:"#fff",labelFontColor:"#fff"});
-const gaugeRight=new JustGage({id:"gauge-right",min:-30,max:40,value:0,decimals:1,label:"°C",valueFontColor:"#fff",labelFontColor:"#fff"});
-
-function setOnline(ok){
-  online.textContent=ok?"ONLINE":"OFFLINE";
-  online.className=ok?"online":"offline";
+function playSound(){
+  if(!muted) document.getElementById("sound-high").play();
 }
 
-function updateUI(){
-  minVal.textContent=minTemp;
-  maxVal.textContent=maxTemp;
+function drawGraph(){
+  ctx.clearRect(0,0,graph.width,graph.height);
+  if(history.length<2) return;
+
+  const temps=history.map(h=>h.temp);
+  const minG=Math.min(minTemp-5,...temps);
+  const maxG=Math.max(maxTemp+5,...temps);
+
+  const y=v=>graph.height-(v-minG)/(maxG-minG)*graph.height;
+
+  /* 🟦🟩🟥 ZÓNY */
+  ctx.fillStyle="rgba(77,166,255,0.15)";
+  ctx.fillRect(0,y(minTemp),graph.width,y(minG)-y(minTemp));
+
+  ctx.fillStyle="rgba(51,255,102,0.12)";
+  ctx.fillRect(0,y(maxTemp),graph.width,y(minTemp)-y(maxTemp));
+
+  ctx.fillStyle="rgba(255,85,85,0.15)";
+  ctx.fillRect(0,0,graph.width,y(maxTemp));
+
+  /* 🎯 CÍLOVÁ TEPLOTA */
+  const target=(minTemp+maxTemp)/2;
+  ctx.strokeStyle="#fff";
+  ctx.setLineDash([6,6]);
+  ctx.beginPath();
+  ctx.moveTo(0,y(target));
+  ctx.lineTo(graph.width,y(target));
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  /* 📈 KŘIVKA */
+  ctx.strokeStyle="#33ff66";
+  ctx.lineWidth=2;
+  ctx.beginPath();
+  history.forEach((h,i)=>{
+    let x=i*(graph.width/(history.length-1));
+    i?ctx.lineTo(x,y(h.temp)):ctx.moveTo(x,y(h.temp));
+  });
+  ctx.stroke();
+
+  /* ⏱ ČASOVÁ OSA */
+  ctx.fillStyle="#aaa";
+  ctx.font="11px Segoe UI";
+  ctx.fillText("−3h",5,graph.height-5);
+  ctx.fillText("nyní",graph.width-40,graph.height-5);
 }
-updateUI();
 
-function changeMin(v){ if(minTemp+v<maxTemp){minTemp+=v;updateUI();} }
-function changeMax(v){ if(maxTemp+v>minTemp){maxTemp+=v;updateUI();} }
+async function load(){
+  try{
+    const d1=await(await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`)).json();
+    online.textContent="ONLINE"; online.className="online";
 
-function playSound(t){
-  if(muted) return;
-  sounds[t].currentTime=0;
-  sounds[t].play();
+    let t=parseFloat(d1[`field${FIELD_CENTER}`]);
+    if(!isNaN(t)){
+      gaugeCenter.refresh(t);
+      history.push({temp:t});
+      if(history.length>MAX_HISTORY) history.shift();
+      drawGraph();
+      lastTemp=t;
+    }
+  }catch{
+    online.textContent="OFFLINE"; online.className="offline";
+  }
 }
-
-function testAlarm(){ playSound("alarm"); }
 
 muteBtn.onclick=()=>{
   muted=!muted;
@@ -241,73 +241,8 @@ muteBtn.onclick=()=>{
   muteBtn.classList.toggle("off",muted);
 };
 
-function drawGraph(){
-  ctx.clearRect(0,0,graph.width,graph.height);
-  if(history.length<2) return;
-
-  const temps=history.map(h=>h.temp);
-  const minT=Math.min(...temps)-2;
-  const maxT=Math.max(...temps)+2;
-
-  ctx.strokeStyle="rgba(255,255,255,0.15)";
-  ctx.fillStyle="#aaa";
-  ctx.font="12px Segoe UI";
-
-  for(let i=0;i<=4;i++){
-    let y=i*(graph.height/4);
-    let val=(maxT-(i*(maxT-minT)/4)).toFixed(0);
-    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(graph.width,y); ctx.stroke();
-    ctx.fillText(val+"°C",5,y+12);
-  }
-
-  ctx.strokeStyle="#33ff66";
-  ctx.lineWidth=2;
-  ctx.beginPath();
-  history.forEach((h,i)=>{
-    let x=i*(graph.width/(history.length-1));
-    let y=graph.height-((h.temp-minT)/(maxT-minT))*graph.height;
-    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
-  });
-  ctx.stroke();
-}
-
-async function load(){
-  try{
-    const d1=await(await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`)).json();
-    setOnline(true);
-
-    let t=parseFloat(d1[`field${FIELD_CENTER}`]);
-    let w=parseFloat(d1[`field${FIELD_LEFT}`]);
-
-    if(!isNaN(t)){
-      gaugeCenter.refresh(t);
-      trend.textContent=lastTemp? t>lastTemp?"🔼":t<lastTemp?"🔽":"➖":"➖";
-
-      status.className="";
-      if(t<minTemp){ status.textContent="Nízká teplota"; status.classList.add("status-low"); playSound("low"); }
-      else if(t>maxTemp){ status.textContent="Vysoká teplota"; status.classList.add("status-high"); playSound("high"); }
-      else{ status.textContent="Ideální teplota"; status.classList.add("status-ok"); }
-
-      lastTemp=t;
-      history.push({t:Date.now(),temp:t});
-      if(history.length>20) history.shift();
-      drawGraph();
-    }
-
-    if(!isNaN(w)) gaugeLeft.refresh(w);
-
-    const d2=await(await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`)).json();
-    let o=parseFloat(d2[`field${FIELD_RIGHT}`]);
-    if(!isNaN(o)) gaugeRight.refresh(o);
-
-  }catch{
-    setOnline(false);
-  }
-}
-
 fsBtn.onclick=()=>{
-  if(!document.fullscreenElement) document.documentElement.requestFullscreen();
-  else document.exitFullscreen();
+  document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
 };
 
 setInterval(load,15000);
