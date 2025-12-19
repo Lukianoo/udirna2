@@ -5,7 +5,6 @@
   <title>Panel udírny</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- JustGage + dependencies -->
   <script src="https://cdn.jsdelivr.net/npm/raphael@2.3.0/raphael.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/justgage@1.4.0/justgage.min.js"></script>
 
@@ -25,24 +24,17 @@
       font-size: 36px;
     }
 
-    #clock {
-      font-size: 20px;
-      opacity: 0.8;
-    }
+    #clock { font-size: 20px; opacity: 0.8; }
 
     #temp-status {
       text-align: center;
-      font-size: 36px;
+      font-size: 34px;
       font-weight: bold;
       margin-bottom: 10px;
       padding: 10px;
       border-radius: 10px;
       background: #222;
     }
-
-    .status-low { color: #3399ff; }
-    .status-ok { color: #33cc33; }
-    .status-high { color: #ff3333; }
 
     .panel {
       display: grid;
@@ -57,34 +49,19 @@
       background: #1e1e1e;
       border-radius: 25px;
       padding: 15px;
-      box-shadow: 0 4px 30px rgba(0,0,0,0.5);
       text-align: center;
     }
 
-    .gauge.big {
-      transform: scale(1.15);
-    }
+    .gauge.big { transform: scale(1.15); }
 
-    .label {
-      margin-top: 8px;
-      font-size: 16px;
-      opacity: 0.85;
-    }
+    .gauge-title { font-size: 30px; margin-bottom: 5px; }
 
-    .gauge-title {
-      font-size: 32px;
-      font-weight: bold;
-      margin-bottom: 10px;
-    }
+    #trend { font-size: 42px; }
 
     .controls {
       display: flex;
       justify-content: space-around;
       margin-top: 10px;
-    }
-
-    .control-group {
-      text-align: center;
     }
 
     .control-group button {
@@ -98,31 +75,22 @@
       color: #fff;
     }
 
-    .control-group div {
-      font-size: 16px;
-      margin-bottom: 5px;
-    }
-
-    #trend {
-      font-size: 40px;
+    select, .test-btn {
       margin-top: 5px;
+      padding: 5px;
+      border-radius: 6px;
+      border: none;
+      background: #333;
+      color: #fff;
+      font-size: 14px;
     }
 
     #fullscreen-btn {
-      font-size: 16px;
-      padding: 8px 15px;
+      padding: 8px 14px;
       border-radius: 10px;
       border: none;
       background: #333;
       color: #fff;
-      cursor: pointer;
-    }
-
-    footer {
-      text-align: center;
-      font-size: 14px;
-      opacity: 0.6;
-      margin: 20px 0 30px;
     }
   </style>
 </head>
@@ -142,146 +110,107 @@
 <div class="panel">
   <div class="gauge">
     <div id="gauge-left" style="height:240px;"></div>
-    <div class="label">WiFi signál [%]</div>
+    WiFi signál [%]
   </div>
 
   <div class="gauge big">
     <div class="gauge-title">Teplota v udírně</div>
     <div id="trend">➖</div>
-    <div id="gauge-center" style="height:280px;"></div>
+    <div id="gauge-center" style="height:260px;"></div>
 
     <div class="controls">
-      <div class="control-group">
-        <div>MIN: <span id="minTemp">75</span>°C</div>
-        <button onclick="minTemp--">−</button>
-        <button onclick="minTemp++">+</button>
+      <div>
+        MIN <span id="minVal">75</span>°C<br>
+        <button onclick="changeMin(-1)">−</button>
+        <button onclick="changeMin(1)">+</button><br>
+        <select id="minSound">
+          <option value="low">Nízký tón</option>
+          <option value="alarm">Alarm</option>
+        </select>
       </div>
 
-      <div class="control-group">
-        <div>MAX: <span id="maxTemp">85</span>°C</div>
-        <button onclick="maxTemp--">−</button>
-        <button onclick="maxTemp++">+</button>
+      <div>
+        MAX <span id="maxVal">85</span>°C<br>
+        <button onclick="changeMax(-1)">−</button>
+        <button onclick="changeMax(1)">+</button><br>
+        <select id="maxSound">
+          <option value="alarm">Alarm</option>
+          <option value="high">Vysoký tón</option>
+        </select>
       </div>
     </div>
 
-    <div class="label">[°C]</div>
+    <button class="test-btn" onclick="testAlarm()">🔊 Test alarmu</button>
   </div>
 
   <div class="gauge">
     <div id="gauge-right" style="height:240px;"></div>
-    <div class="label">Venkovní teplota [°C]</div>
+    Venkovní teplota [°C]
   </div>
 </div>
 
-<footer>
-  <div>Aktualizace každých 15 s</div>
-</footer>
-
-<audio id="alarm">
-  <source src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" type="audio/ogg">
-</audio>
+<audio id="sound-low" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+<audio id="sound-alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
+<audio id="sound-high" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
   const CHANNEL_LEFT_CENTER = "260804";
   const CHANNEL_RIGHT = "231269";
+  const FIELD_CENTER = 1, FIELD_LEFT = 2, FIELD_RIGHT = 4;
 
-  const FIELD_CENTER = 1;
-  const FIELD_LEFT = 2;
-  const FIELD_RIGHT = 4;
+  let minTemp = 75, maxTemp = 85, lastTemp = null;
+  let alarmState = "OK";
 
-  let minTemp = 75;
-  let maxTemp = 85;
-  let lastTemp = null;
-
-  const alarm = document.getElementById("alarm");
-
-  const gaugeLeft = new JustGage({
-    id: "gauge-left",
-    value: 0,
-    min: 0,
-    max: 100,
-    label: "%",
-    valueFontColor: "#fff"
-  });
-
-  const gaugeCenter = new JustGage({
-    id: "gauge-center",
-    value: 0,
-    min: 0,
-    max: 120,
-    label: "°C",
-    valueFontColor: "#fff"
-  });
-
-  const gaugeRight = new JustGage({
-    id: "gauge-right",
-    value: 0,
-    min: -30,
-    max: 40,
-    decimals: 1,
-    label: "°C",
-    valueFontColor: "#fff"
-  });
-
-  async function loadThingSpeak() {
-    try {
-      const res1 = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`);
-      const data1 = await res1.json();
-
-      const tempIn = parseFloat(data1[`field${FIELD_CENTER}`]);
-      const wifi = parseFloat(data1[`field${FIELD_LEFT}`]);
-
-      if (!isNaN(tempIn)) {
-        gaugeCenter.refresh(tempIn);
-
-        if (lastTemp !== null) {
-          document.getElementById("trend").textContent =
-            tempIn > lastTemp ? "🔼" : tempIn < lastTemp ? "🔽" : "➖";
-        }
-        lastTemp = tempIn;
-
-        if (tempIn < minTemp || tempIn > maxTemp) {
-          alarm.play();
-        }
-      }
-
-      if (!isNaN(wifi)) gaugeLeft.refresh(wifi);
-
-      document.getElementById("minTemp").textContent = minTemp;
-      document.getElementById("maxTemp").textContent = maxTemp;
-
-      const res2 = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`);
-      const data2 = await res2.json();
-
-      let tempOut = parseFloat(data2[`field${FIELD_RIGHT}`]);
-      if (!isNaN(tempOut)) {
-        tempOut = Math.round(tempOut * 10) / 10;
-        gaugeRight.refresh(tempOut);
-      }
-
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  loadThingSpeak();
-  setInterval(loadThingSpeak, 15000);
-
-  function updateClock() {
-    document.getElementById("clock").textContent =
-      new Date().toLocaleTimeString("cs-CZ");
-  }
-
-  updateClock();
-  setInterval(updateClock, 1000);
-
-  document.getElementById("fullscreen-btn").onclick = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-    } else {
-      document.exitFullscreen();
-    }
+  const sounds = {
+    low: document.getElementById("sound-low"),
+    alarm: document.getElementById("sound-alarm"),
+    high: document.getElementById("sound-high")
   };
+
+  const gaugeLeft = new JustGage({ id:"gauge-left", min:0, max:100, value:0 });
+  const gaugeCenter = new JustGage({ id:"gauge-center", min:0, max:120, value:0 });
+  const gaugeRight = new JustGage({ id:"gauge-right", min:-30, max:40, value:0, decimals:1 });
+
+  function changeMin(v){
+    if(minTemp + v < maxTemp){ minTemp += v; updateUI(); }
+  }
+  function changeMax(v){
+    if(maxTemp + v > minTemp){ maxTemp += v; updateUI(); }
+  }
+  function updateUI(){
+    minVal.textContent = minTemp;
+    maxVal.textContent = maxTemp;
+  }
+
+  function playSound(type){
+    sounds[type].currentTime = 0;
+    sounds[type].play();
+  }
+
+  function testAlarm(){
+    playSound(minSound.value);
+    setTimeout(()=>playSound(maxSound.value), 1000);
+  }
+
+  async function loadThingSpeak(){
+    const d1 = await (await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`)).json();
+    const temp = parseFloat(d1[`field${FIELD_CENTER}`]);
+    if(!isNaN(temp)){
+      gaugeCenter.refresh(temp);
+      if(lastTemp!==null) trend.textContent = temp>lastTemp?"🔼":temp<lastTemp?"🔽":"➖";
+      if(temp < minTemp && alarmState!=="LOW"){ playSound(minSound.value); alarmState="LOW"; }
+      else if(temp > maxTemp && alarmState!=="HIGH"){ playSound(maxSound.value); alarmState="HIGH"; }
+      else if(temp>=minTemp && temp<=maxTemp){ alarmState="OK"; }
+      lastTemp = temp;
+    }
+    gaugeLeft.refresh(parseFloat(d1[`field${FIELD_LEFT}`]));
+    const d2 = await (await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`)).json();
+    gaugeRight.refresh(Math.round(parseFloat(d2[`field${FIELD_RIGHT}`])*10)/10);
+  }
+
+  loadThingSpeak(); setInterval(loadThingSpeak,15000);
+  setInterval(()=>clock.textContent=new Date().toLocaleTimeString("cs-CZ"),1000);
+  fullscreen-btn.onclick=()=>!document.fullscreenElement?document.documentElement.requestFullscreen():document.exitFullscreen();
 </script>
 
 </body>
