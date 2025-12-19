@@ -233,29 +233,8 @@ const ctx=graph.getContext("2d");
 graph.width=graph.clientWidth;
 graph.height=graph.clientHeight;
 
-const sounds={
-  low:document.getElementById("sound-low"),
-  alarm:document.getElementById("sound-alarm"),
-  high:document.getElementById("sound-high")
-};
-
-const gaugeLeft=new JustGage({id:"gauge-left",min:0,max:100,value:0,valueFontColor:"#fff"});
-const gaugeCenter=new JustGage({id:"gauge-center",min:0,max:120,value:0,label:"°C",valueFontColor:"#fff"});
-const gaugeRight=new JustGage({id:"gauge-right",min:-30,max:40,value:0,decimals:1,label:"°C",valueFontColor:"#fff"});
-
-function playSound(t){
-  if(muted) return;
-  sounds[t].currentTime=0;
-  sounds[t].play();
-}
-function testAlarm(){ playSound("alarm"); }
-
-muteBtn.onclick=()=>{
-  muted=!muted;
-  localStorage.muted=muted?"1":"0";
-  muteBtn.textContent=muted?"ALARM OFF":"ALARM ON";
-  muteBtn.classList.toggle("off",muted);
-};
+const PAD_L = 40;
+const PAD_B = 20;
 
 function drawGraph(){
   ctx.clearRect(0,0,graph.width,graph.height);
@@ -264,7 +243,11 @@ function drawGraph(){
   const temps=history.map(h=>h.temp);
   const minG=Math.min(minTemp-5,...temps);
   const maxG=Math.max(maxTemp+5,...temps);
-  const y=v=>graph.height-(v-minG)/(maxG-minG)*graph.height;
+
+  const W = graph.width - PAD_L;
+  const H = graph.height - PAD_B;
+
+  const y=v=>H-(v-minG)/(maxG-minG)*H;
 
   ctx.font="12px Segoe UI";
   ctx.fillStyle="#aaa";
@@ -272,8 +255,11 @@ function drawGraph(){
 
   for(let i=0;i<=4;i++){
     let val=(maxG-i*(maxG-minG)/4).toFixed(0);
-    let yy=i*(graph.height/4);
-    ctx.beginPath(); ctx.moveTo(0,yy); ctx.lineTo(graph.width,yy); ctx.stroke();
+    let yy=i*(H/4);
+    ctx.beginPath();
+    ctx.moveTo(PAD_L,yy);
+    ctx.lineTo(graph.width,yy);
+    ctx.stroke();
     ctx.fillText(val+"°C",5,yy+12);
   }
 
@@ -281,15 +267,13 @@ function drawGraph(){
   ctx.lineWidth=2;
   ctx.beginPath();
   history.forEach((h,i)=>{
-    let x=i*(graph.width/(history.length-1));
+    let x=PAD_L+i*(W/(history.length-1));
     i?ctx.lineTo(x,y(h.temp)):ctx.moveTo(x,y(h.temp));
   });
   ctx.stroke();
 
   ctx.fillStyle="#aaa";
   ctx.textAlign="center";
-  ctx.fillText("-"+Math.round(MAX_HISTORY/4/4)+" min",graph.width*0.25,graph.height-5);
-  ctx.fillText("-"+Math.round(MAX_HISTORY/2/4)+" min",graph.width*0.5,graph.height-5);
   ctx.fillText("teď",graph.width-20,graph.height-5);
 }
 
@@ -299,38 +283,17 @@ async function load(){
     online.textContent="ONLINE"; online.className="online";
 
     let t=parseFloat(d1[`field${FIELD_CENTER}`]);
-    let w=parseFloat(d1[`field${FIELD_LEFT}`]);
-
     if(!isNaN(t)){
-      gaugeCenter.refresh(t);
-      trend.textContent=lastTemp? t>lastTemp?"🔼":t<lastTemp?"🔽":"➖":"➖";
-
-      status.className="";
-      if(t<minTemp){ status.textContent="Nízká teplota"; status.classList.add("status-low"); playSound("low"); }
-      else if(t>maxTemp){ status.textContent="Vysoká teplota"; status.classList.add("status-high"); playSound("high"); }
-      else{ status.textContent="Ideální teplota"; status.classList.add("status-ok"); }
-
-      lastTemp=t;
       history.push({temp:t});
       if(history.length>MAX_HISTORY) history.shift();
       drawGraph();
     }
-
-    if(!isNaN(w)) gaugeLeft.refresh(w);
-
-    const d2=await(await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`)).json();
-    let o=parseFloat(d2[`field${FIELD_RIGHT}`]);
-    if(!isNaN(o)) gaugeRight.refresh(o);
-
   }catch{
     online.textContent="OFFLINE"; online.className="offline";
   }
 }
 
-fsBtn.onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
-
 setInterval(load,15000);
-setInterval(()=>clock.textContent=new Date().toLocaleTimeString("cs-CZ"),1000);
 load();
 </script>
 
