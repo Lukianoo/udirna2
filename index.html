@@ -34,7 +34,7 @@
       text-align: center;
       font-size: 36px;
       font-weight: bold;
-      margin-bottom: 20px;
+      margin-bottom: 10px;
       padding: 10px;
       border-radius: 10px;
       background: #222;
@@ -74,7 +74,48 @@
     .gauge-title {
       font-size: 32px;
       font-weight: bold;
-      margin-bottom: 15px;
+      margin-bottom: 10px;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 10px;
+    }
+
+    .control-group {
+      text-align: center;
+    }
+
+    .control-group button {
+      font-size: 22px;
+      width: 40px;
+      height: 40px;
+      margin: 2px;
+      border-radius: 8px;
+      border: none;
+      background: #333;
+      color: #fff;
+    }
+
+    .control-group div {
+      font-size: 16px;
+      margin-bottom: 5px;
+    }
+
+    #trend {
+      font-size: 40px;
+      margin-top: 5px;
+    }
+
+    #fullscreen-btn {
+      font-size: 16px;
+      padding: 8px 15px;
+      border-radius: 10px;
+      border: none;
+      background: #333;
+      color: #fff;
+      cursor: pointer;
     }
 
     footer {
@@ -90,7 +131,10 @@
 
 <h1 class="header">
   🔥 Panel udírny
-  <span id="clock">--:--:--</span>
+  <span>
+    <button id="fullscreen-btn">⛶ Fullscreen</button>
+    <span id="clock">--:--:--</span>
+  </span>
 </h1>
 
 <div id="temp-status">Čekám na data…</div>
@@ -103,7 +147,23 @@
 
   <div class="gauge big">
     <div class="gauge-title">Teplota v udírně</div>
-    <div id="gauge-center" style="height:300px;"></div>
+    <div id="trend">➖</div>
+    <div id="gauge-center" style="height:280px;"></div>
+
+    <div class="controls">
+      <div class="control-group">
+        <div>MIN: <span id="minTemp">75</span>°C</div>
+        <button onclick="minTemp--">−</button>
+        <button onclick="minTemp++">+</button>
+      </div>
+
+      <div class="control-group">
+        <div>MAX: <span id="maxTemp">85</span>°C</div>
+        <button onclick="maxTemp--">−</button>
+        <button onclick="maxTemp++">+</button>
+      </div>
+    </div>
+
     <div class="label">[°C]</div>
   </div>
 
@@ -114,25 +174,33 @@
 </div>
 
 <footer>
-  <div id="update-time">Aktualizace každých 15 s</div>
+  <div>Aktualizace každých 15 s</div>
 </footer>
 
-<script>
-  const CHANNEL_LEFT_CENTER = "260804"; // udírna + wifi
-  const CHANNEL_RIGHT = "231269";       // venek
+<audio id="alarm">
+  <source src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" type="audio/ogg">
+</audio>
 
-  const FIELD_CENTER = 1; // teplota udírny
-  const FIELD_LEFT = 2;   // wifi
-  const FIELD_RIGHT = 4;  // venkovní teplota
+<script>
+  const CHANNEL_LEFT_CENTER = "260804";
+  const CHANNEL_RIGHT = "231269";
+
+  const FIELD_CENTER = 1;
+  const FIELD_LEFT = 2;
+  const FIELD_RIGHT = 4;
+
+  let minTemp = 75;
+  let maxTemp = 85;
+  let lastTemp = null;
+
+  const alarm = document.getElementById("alarm");
 
   const gaugeLeft = new JustGage({
     id: "gauge-left",
     value: 0,
     min: 0,
     max: 100,
-    decimals: 0,
     label: "%",
-    levelColors: ["#ff3333", "#ffcc00", "#33cc33"],
     valueFontColor: "#fff"
   });
 
@@ -141,9 +209,7 @@
     value: 0,
     min: 0,
     max: 120,
-    decimals: 0,
     label: "°C",
-    levelColors: ["#3399ff", "#33cc33", "#ff3333"],
     valueFontColor: "#fff"
   });
 
@@ -152,50 +218,49 @@
     value: 0,
     min: -30,
     max: 40,
-    decimals: 1,                 // ✅ 1 desetinné místo
+    decimals: 1,
     label: "°C",
-    levelColors: ["#3399ff", "#33cc33", "#ff9933"],
     valueFontColor: "#fff"
   });
 
   async function loadThingSpeak() {
     try {
-      // Udírna + WiFi
       const res1 = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`);
       const data1 = await res1.json();
 
       const tempIn = parseFloat(data1[`field${FIELD_CENTER}`]);
       const wifi = parseFloat(data1[`field${FIELD_LEFT}`]);
 
-      if (!isNaN(tempIn)) gaugeCenter.refresh(tempIn);
-      if (!isNaN(wifi)) gaugeLeft.refresh(wifi);
+      if (!isNaN(tempIn)) {
+        gaugeCenter.refresh(tempIn);
 
-      const status = document.getElementById("temp-status");
-      status.className = "";
+        if (lastTemp !== null) {
+          document.getElementById("trend").textContent =
+            tempIn > lastTemp ? "🔼" : tempIn < lastTemp ? "🔽" : "➖";
+        }
+        lastTemp = tempIn;
 
-      if (tempIn < 75) {
-        status.textContent = "Nízká teplota";
-        status.classList.add("status-low");
-      } else if (tempIn <= 85) {
-        status.textContent = "Ideální teplota";
-        status.classList.add("status-ok");
-      } else {
-        status.textContent = "Pozor vysoká teplota";
-        status.classList.add("status-high");
+        if (tempIn < minTemp || tempIn > maxTemp) {
+          alarm.play();
+        }
       }
 
-      // Venkovní teplota (jiný kanál)
+      if (!isNaN(wifi)) gaugeLeft.refresh(wifi);
+
+      document.getElementById("minTemp").textContent = minTemp;
+      document.getElementById("maxTemp").textContent = maxTemp;
+
       const res2 = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`);
       const data2 = await res2.json();
 
       let tempOut = parseFloat(data2[`field${FIELD_RIGHT}`]);
       if (!isNaN(tempOut)) {
-        tempOut = Math.round(tempOut * 10) / 10; // ✅ 1 desetina
+        tempOut = Math.round(tempOut * 10) / 10;
         gaugeRight.refresh(tempOut);
       }
 
     } catch (e) {
-      console.error("Chyba ThingSpeak:", e);
+      console.error(e);
     }
   }
 
@@ -209,6 +274,14 @@
 
   updateClock();
   setInterval(updateClock, 1000);
+
+  document.getElementById("fullscreen-btn").onclick = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  };
 </script>
 
 </body>
