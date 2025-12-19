@@ -27,10 +27,9 @@ h1{
   font-size:36px;
 }
 
-/* OPRAVA: víc místa nahoře a dole, padding větší */
 #temp-status{
-  margin:20px 40px 20px;  
-  padding:16px;            
+  margin:20px 40px;
+  padding:16px;
   border-radius:12px;
   font-size:30px;
   font-weight:bold;
@@ -100,18 +99,15 @@ button,select{
 <span id="clock"></span>
 </h1>
 
-<!-- STAV TEPLOTY -->
 <div id="temp-status">Čekám na data…</div>
 
 <div class="panel">
 
-<!-- WIFI -->
 <div class="gauge">
   <div id="gauge-left" style="height:240px"></div>
   WiFi signál [%]
 </div>
 
-<!-- UDÍRNA -->
 <div class="gauge big">
   <div style="font-size:28px;margin-bottom:4px">Teplota v udírně</div>
   <div id="trend">➖</div>
@@ -144,7 +140,6 @@ button,select{
   <button onclick="testAlarm()">🔊 Test alarmu</button>
 </div>
 
-<!-- VENEK -->
 <div class="gauge">
   <div id="gauge-right" style="height:240px"></div>
   Venkovní teplota [°C]
@@ -152,114 +147,98 @@ button,select{
 
 </div>
 
-<!-- ZVUKY -->
 <audio id="sound-low" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
 <audio id="sound-alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
 <audio id="sound-high" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
-const CHANNEL_LEFT_CENTER="260804",CHANNEL_RIGHT="231269";
-const FIELD_CENTER=1,FIELD_LEFT=2,FIELD_RIGHT=4;
+const CHANNEL_LEFT_CENTER="260804", CHANNEL_RIGHT="231269";
+const FIELD_CENTER=1, FIELD_LEFT=2, FIELD_RIGHT=4;
 
-let minTemp=parseInt(localStorage.minTemp)||75;
-let maxTemp=parseInt(localStorage.maxTemp)||85;
-let lastTemp=null,alarmState="OK";
-let history=[];
+const clock = document.getElementById("clock");
+const minVal = document.getElementById("minVal");
+const maxVal = document.getElementById("maxVal");
+const trend = document.getElementById("trend");
+const graph = document.getElementById("graph");
+const ctx = graph.getContext("2d");
+const minSound = document.getElementById("minSound");
+const maxSound = document.getElementById("maxSound");
+const status = document.getElementById("temp-status");
 
-const minVal=document.getElementById("minVal");
-const maxVal=document.getElementById("maxVal");
-const trend=document.getElementById("trend");
-const graph=document.getElementById("graph");
-const ctx=graph.getContext("2d");
-const minSound=document.getElementById("minSound");
-const maxSound=document.getElementById("maxSound");
-const status=document.getElementById("temp-status");
+graph.width = graph.clientWidth;
+graph.height = graph.clientHeight;
 
-minSound.value=localStorage.minSound||"low";
-maxSound.value=localStorage.maxSound||"alarm";
+let minTemp = parseInt(localStorage.minTemp) || 75;
+let maxTemp = parseInt(localStorage.maxTemp) || 85;
+let lastTemp = null;
+let alarmState = "OK";
+let history = [];
 
-const sounds={
-  low:document.getElementById("sound-low"),
-  alarm:document.getElementById("sound-alarm"),
-  high:document.getElementById("sound-high")
+minSound.value = localStorage.minSound || "low";
+maxSound.value = localStorage.maxSound || "alarm";
+
+const sounds = {
+  low: document.getElementById("sound-low"),
+  alarm: document.getElementById("sound-alarm"),
+  high: document.getElementById("sound-high")
 };
 
-const gaugeLeft=new JustGage({id:"gauge-left",min:0,max:100,value:0,label:"%",valueFontColor:"#fff"});
-const gaugeCenter=new JustGage({id:"gauge-center",min:0,max:120,value:0,label:"°C",valueFontColor:"#fff"});
-const gaugeRight=new JustGage({id:"gauge-right",min:-30,max:40,value:0,decimals:1,label:"°C",valueFontColor:"#fff"});
+const gaugeLeft = new JustGage({ id:"gauge-left", min:0, max:100, value:0, label:"%", valueFontColor:"#fff" });
+const gaugeCenter = new JustGage({ id:"gauge-center", min:0, max:120, value:0, label:"°C", valueFontColor:"#fff" });
+const gaugeRight = new JustGage({ id:"gauge-right", min:-30, max:40, value:0, decimals:1, label:"°C", valueFontColor:"#fff" });
 
 function save(){
-  localStorage.minTemp=minTemp;
-  localStorage.maxTemp=maxTemp;
-  localStorage.minSound=minSound.value;
-  localStorage.maxSound=maxSound.value;
+  localStorage.minTemp = minTemp;
+  localStorage.maxTemp = maxTemp;
+  localStorage.minSound = minSound.value;
+  localStorage.maxSound = maxSound.value;
 }
 
 function updateUI(){
-  minVal.textContent=minTemp;
-  maxVal.textContent=maxTemp;
+  minVal.textContent = minTemp;
+  maxVal.textContent = maxTemp;
 }
 updateUI();
 
-function changeMin(v){ if(minTemp+v<maxTemp){minTemp+=v;save();updateUI()} }
-function changeMax(v){ if(maxTemp+v>minTemp){maxTemp+=v;save();updateUI()} }
+function changeMin(v){ if(minTemp+v < maxTemp){ minTemp+=v; save(); updateUI(); } }
+function changeMax(v){ if(maxTemp+v > minTemp){ maxTemp+=v; save(); updateUI(); } }
 
-function playSound(t){ sounds[t].currentTime=0; sounds[t].play(); }
-function testAlarm(){ playSound(minSound.value); setTimeout(()=>playSound(maxSound.value),900); }
+function playSound(t){
+  if(sounds[t]){
+    sounds[t].currentTime = 0;
+    sounds[t].play();
+  }
+}
+
+function testAlarm(){
+  playSound(minSound.value);
+  setTimeout(()=>playSound(maxSound.value), 900);
+}
 
 function drawGraph(){
   ctx.clearRect(0,0,graph.width,graph.height);
+
   ctx.strokeStyle="rgba(255,255,255,0.08)";
   for(let i=1;i<5;i++){
     let y=i*(graph.height/5);
-    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(graph.width,y); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0,y);
+    ctx.lineTo(graph.width,y);
+    ctx.stroke();
   }
-  if(history.length<2)return;
+
+  if(history.length<2) return;
+
   ctx.strokeStyle="#33cc33";
   ctx.lineWidth=2;
   ctx.beginPath();
+
   history.forEach((v,i)=>{
     let x=i*(graph.width/(history.length-1));
     let y=graph.height-(v/120*graph.height);
-    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    i ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
   });
   ctx.stroke();
 }
 
-async function load(){
-  const d1=await(await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`)).json();
-  let t=parseFloat(d1[`field${FIELD_CENTER}`]);
-  let w=parseFloat(d1[`field${FIELD_LEFT}`]);
-
-  if(!isNaN(t)){
-    gaugeCenter.refresh(t);
-    trend.textContent=lastTemp? t>lastTemp?"🔼":t<lastTemp?"🔽":"➖":"➖";
-
-    status.className="";
-    if(t<minTemp){ status.textContent="Nízká teplota"; status.classList.add("status-low"); }
-    else if(t>maxTemp){ status.textContent="Vysoká teplota"; status.classList.add("status-high"); }
-    else{ status.textContent="Ideální teplota"; status.classList.add("status-ok"); }
-
-    if(t<minTemp&&alarmState!=="LOW"){playSound(minSound.value);alarmState="LOW";}
-    else if(t>maxTemp&&alarmState!=="HIGH"){playSound(maxSound.value);alarmState="HIGH";}
-    else if(t>=minTemp&&t<=maxTemp)alarmState="OK";
-
-    lastTemp=t;
-    history.push(t); if(history.length>20)history.shift();
-    drawGraph();
-  }
-
-  if(!isNaN(w)) gaugeLeft.refresh(w);
-
-  const d2=await(await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`)).json();
-  let o=parseFloat(d2[`field${FIELD_RIGHT}`]);
-  if(!isNaN(o)) gaugeRight.refresh(Math.round(o*10)/10);
-}
-
-load();
-setInterval(load,15000);
-setInterval(()=>clock.textContent=new Date().toLocaleTimeString("cs-CZ"),1000);
-</script>
-
-</body>
-</html>
+a
