@@ -28,13 +28,14 @@ h1{
 
 #top-right{
   display:flex;
-  gap:10px;
   align-items:center;
+  gap:12px;
 }
 
 #online{
   padding:4px 10px;
   border-radius:8px;
+  font-size:16px;
   font-weight:bold;
 }
 .online{ background:#1f7a1f; }
@@ -84,14 +85,16 @@ h1{
 
 #graph{
   width:100%;
-  height:180px;
+  height:160px;
   margin-top:10px;
   border-radius:12px;
   background:#111;
 }
 
 @media(max-width:900px){
-  .panel{ grid-template-columns:1fr; }
+  h1{ font-size:26px; margin:15px; }
+  #temp-status{ font-size:24px; margin:15px; }
+  .panel{ grid-template-columns:1fr; padding:10px; }
   .big{ transform:none; }
 }
 </style>
@@ -115,7 +118,7 @@ h1{
 
 <div class="gauge">
   <div id="gauge-left" style="height:240px"></div>
-  WiFi [%]
+  WiFi signál [%]
 </div>
 
 <div class="gauge big">
@@ -123,16 +126,32 @@ h1{
   <div id="trend">➖</div>
   <div id="gauge-center" style="height:240px"></div>
   <canvas id="graph"></canvas>
+
+  <div class="controls">
+    <div>
+      MIN <span id="minVal"></span>°C<br>
+      <button onclick="changeMin(-1)">−</button>
+      <button onclick="changeMin(1)">+</button>
+    </div>
+    <div>
+      MAX <span id="maxVal"></span>°C<br>
+      <button onclick="changeMax(-1)">−</button>
+      <button onclick="changeMax(1)">+</button>
+    </div>
+  </div>
+
+  <button onclick="testAlarm()">🔊 Test alarmu</button>
 </div>
 
 <div class="gauge">
   <div id="gauge-right" style="height:240px"></div>
-  Venek [°C]
+  Venkovní teplota [°C]
 </div>
 
 </div>
 
 <audio id="sound-low" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+<audio id="sound-alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
 <audio id="sound-high" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
@@ -144,30 +163,52 @@ const online=document.getElementById("online");
 const fsBtn=document.getElementById("fullscreen");
 const muteBtn=document.getElementById("muteBtn");
 
+const minVal=document.getElementById("minVal");
+const maxVal=document.getElementById("maxVal");
+const trend=document.getElementById("trend");
+const status=document.getElementById("temp-status");
+
 let minTemp=parseInt(localStorage.minTemp)||75;
 let maxTemp=parseInt(localStorage.maxTemp)||85;
 let muted=localStorage.muted==="1";
 let lastTemp=null;
 
-/* ⏱ 3 HODINY HISTORIE (15s interval) */
-const MAX_HISTORY = 720; 
+/* ⏱ cca 1 HODINA HISTORIE */
+const MAX_HISTORY = 240;
 let history=[];
 
 muteBtn.textContent=muted?"ALARM OFF":"ALARM ON";
-muteBtn.classList.toggle("off",muted);
+if(muted) muteBtn.classList.add("off");
 
 const graph=document.getElementById("graph");
 const ctx=graph.getContext("2d");
 graph.width=graph.clientWidth;
 graph.height=graph.clientHeight;
 
+const sounds={
+  low:document.getElementById("sound-low"),
+  alarm:document.getElementById("sound-alarm"),
+  high:document.getElementById("sound-high")
+};
+
 const gaugeLeft=new JustGage({id:"gauge-left",min:0,max:100,value:0,valueFontColor:"#fff"});
 const gaugeCenter=new JustGage({id:"gauge-center",min:0,max:120,value:0,label:"°C",valueFontColor:"#fff"});
 const gaugeRight=new JustGage({id:"gauge-right",min:-30,max:40,value:0,decimals:1,label:"°C",valueFontColor:"#fff"});
 
-function playSound(){
-  if(!muted) document.getElementById("sound-high").play();
+function playSound(t){
+  if(muted) return;
+  sounds[t].currentTime=0;
+  sounds[t].play();
 }
+
+function testAlarm(){ playSound("alarm"); }
+
+muteBtn.onclick=()=>{
+  muted=!muted;
+  localStorage.muted=muted?"1":"0";
+  muteBtn.textContent=muted?"ALARM OFF":"ALARM ON";
+  muteBtn.classList.toggle("off",muted);
+};
 
 function drawGraph(){
   ctx.clearRect(0,0,graph.width,graph.height);
@@ -179,17 +220,19 @@ function drawGraph(){
 
   const y=v=>graph.height-(v-minG)/(maxG-minG)*graph.height;
 
-  /* 🟦🟩🟥 ZÓNY */
+  /* 🟦 pod MIN */
   ctx.fillStyle="rgba(77,166,255,0.15)";
   ctx.fillRect(0,y(minTemp),graph.width,y(minG)-y(minTemp));
 
+  /* 🟩 ideál */
   ctx.fillStyle="rgba(51,255,102,0.12)";
   ctx.fillRect(0,y(maxTemp),graph.width,y(minTemp)-y(maxTemp));
 
+  /* 🟥 nad MAX */
   ctx.fillStyle="rgba(255,85,85,0.15)";
   ctx.fillRect(0,0,graph.width,y(maxTemp));
 
-  /* 🎯 CÍLOVÁ TEPLOTA */
+  /* 🎯 cílová teplota */
   const target=(minTemp+maxTemp)/2;
   ctx.strokeStyle="#fff";
   ctx.setLineDash([6,6]);
@@ -199,7 +242,7 @@ function drawGraph(){
   ctx.stroke();
   ctx.setLineDash([]);
 
-  /* 📈 KŘIVKA */
+  /* 📈 křivka */
   ctx.strokeStyle="#33ff66";
   ctx.lineWidth=2;
   ctx.beginPath();
@@ -208,12 +251,6 @@ function drawGraph(){
     i?ctx.lineTo(x,y(h.temp)):ctx.moveTo(x,y(h.temp));
   });
   ctx.stroke();
-
-  /* ⏱ ČASOVÁ OSA */
-  ctx.fillStyle="#aaa";
-  ctx.font="11px Segoe UI";
-  ctx.fillText("−3h",5,graph.height-5);
-  ctx.fillText("nyní",graph.width-40,graph.height-5);
 }
 
 async function load(){
@@ -222,24 +259,33 @@ async function load(){
     online.textContent="ONLINE"; online.className="online";
 
     let t=parseFloat(d1[`field${FIELD_CENTER}`]);
+    let w=parseFloat(d1[`field${FIELD_LEFT}`]);
+
     if(!isNaN(t)){
       gaugeCenter.refresh(t);
+      trend.textContent=lastTemp? t>lastTemp?"🔼":t<lastTemp?"🔽":"➖":"➖";
+
+      status.className="";
+      if(t<minTemp){ status.textContent="Nízká teplota"; status.classList.add("status-low"); playSound("low"); }
+      else if(t>maxTemp){ status.textContent="Vysoká teplota"; status.classList.add("status-high"); playSound("high"); }
+      else{ status.textContent="Ideální teplota"; status.classList.add("status-ok"); }
+
+      lastTemp=t;
       history.push({temp:t});
       if(history.length>MAX_HISTORY) history.shift();
       drawGraph();
-      lastTemp=t;
     }
+
+    if(!isNaN(w)) gaugeLeft.refresh(w);
+
+    const d2=await(await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`)).json();
+    let o=parseFloat(d2[`field${FIELD_RIGHT}`]);
+    if(!isNaN(o)) gaugeRight.refresh(o);
+
   }catch{
     online.textContent="OFFLINE"; online.className="offline";
   }
 }
-
-muteBtn.onclick=()=>{
-  muted=!muted;
-  localStorage.muted=muted?"1":"0";
-  muteBtn.textContent=muted?"ALARM OFF":"ALARM ON";
-  muteBtn.classList.toggle("off",muted);
-};
 
 fsBtn.onclick=()=>{
   document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
