@@ -91,25 +91,6 @@ h1{
   background:#111;
 }
 
-.historyBtns{
-  display:flex;
-  justify-content:center;
-  gap:8px;
-  margin-top:6px;
-}
-
-.historyBtns button{
-  background:#333;
-  color:#fff;
-  border:none;
-  border-radius:6px;
-  padding:4px 10px;
-}
-.historyBtns button.active{
-  background:#33ff66;
-  color:#000;
-}
-
 @media(max-width:900px){
   h1{ font-size:26px; margin:15px; }
   #temp-status{ font-size:24px; margin:15px; }
@@ -144,14 +125,7 @@ h1{
   <div style="font-size:28px">Teplota v udírně</div>
   <div id="trend">➖</div>
   <div id="gauge-center" style="height:240px"></div>
-
   <canvas id="graph"></canvas>
-
-  <div class="historyBtns">
-    <button class="active" onclick="setHistory(240,this)">1h</button>
-    <button onclick="setHistory(720,this)">3h</button>
-    <button onclick="setHistory(1440,this)">6h</button>
-  </div>
 
   <div class="controls">
     <div>
@@ -177,24 +151,25 @@ h1{
 </div>
 
 <audio id="sound-low" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
-<audio id="sound-alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
 <audio id="sound-high" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
-const CHANNEL_LEFT_CENTER="260804",CHANNEL_RIGHT="231269";
-const FIELD_CENTER=1,FIELD_LEFT=2,FIELD_RIGHT=4;
+const CHANNEL_LEFT_CENTER="260804", CHANNEL_RIGHT="231269";
+const FIELD_CENTER=1, FIELD_LEFT=2, FIELD_RIGHT=4;
 
-const clock=document.getElementById("clock");
 const online=document.getElementById("online");
-const fsBtn=document.getElementById("fullscreen");
-const muteBtn=document.getElementById("muteBtn");
+const clock=document.getElementById("clock");
+const trend=document.getElementById("trend");
+const status=document.getElementById("temp-status");
 
 const minVal=document.getElementById("minVal");
 const maxVal=document.getElementById("maxVal");
 
-let minTemp=Number(localStorage.minTemp??75);
-let maxTemp=Number(localStorage.maxTemp??85);
+let minTemp=Number(localStorage.minTemp ?? 75);
+let maxTemp=Number(localStorage.maxTemp ?? 85);
 let muted=localStorage.muted==="1";
+let lastTemp=null;
+let history=[];
 
 function updateUI(){
   minVal.textContent=minTemp;
@@ -202,51 +177,72 @@ function updateUI(){
 }
 updateUI();
 
-/* 🔥 FULLSCREEN – OPRAVA */
-fsBtn.onclick=()=>{
-  const doc=document;
-  const el=document.documentElement;
-
-  if(
-    !doc.fullscreenElement &&
-    !doc.webkitFullscreenElement &&
-    !doc.mozFullScreenElement
-  ){
-    (el.requestFullscreen ||
-     el.webkitRequestFullscreen ||
-     el.mozRequestFullScreen ||
-     el.msRequestFullscreen).call(el);
-  }else{
-    (doc.exitFullscreen ||
-     doc.webkitExitFullscreen ||
-     doc.mozCancelFullScreen ||
-     doc.msExitFullscreen).call(doc);
+function changeMin(v){
+  if(minTemp+v<maxTemp){
+    minTemp+=v;
+    localStorage.minTemp=minTemp;
+    updateUI();
   }
-};
-
-muteBtn.textContent=muted?"ALARM OFF":"ALARM ON";
-muteBtn.onclick=()=>{
-  muted=!muted;
-  localStorage.muted=muted?"1":"0";
-  muteBtn.textContent=muted?"ALARM OFF":"ALARM ON";
-  muteBtn.classList.toggle("off",muted);
-};
-
-const graph=document.getElementById("graph");
-const ctx=graph.getContext("2d");
-
-function resizeGraph(){
-  graph.width=graph.clientWidth;
-  graph.height=graph.clientHeight;
 }
-window.addEventListener("resize",resizeGraph);
-resizeGraph();
+function changeMax(v){
+  if(maxTemp+v>minTemp){
+    maxTemp+=v;
+    localStorage.maxTemp=maxTemp;
+    updateUI();
+  }
+}
+
+const sounds={
+  low:document.getElementById("sound-low"),
+  high:document.getElementById("sound-high")
+};
+
+function playSound(t){
+  if(muted) return;
+  sounds[t].currentTime=0;
+  sounds[t].play();
+}
+function testAlarm(){ playSound("high"); }
 
 const gaugeLeft=new JustGage({id:"gauge-left",min:0,max:100,value:0,valueFontColor:"#fff"});
 const gaugeCenter=new JustGage({id:"gauge-center",min:0,max:120,value:0,label:"°C",valueFontColor:"#fff"});
 const gaugeRight=new JustGage({id:"gauge-right",min:-30,max:40,value:0,decimals:1,label:"°C",valueFontColor:"#fff"});
 
+async function load(){
+  try{
+    const d1=await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`).then(r=>r.json());
+    online.textContent="ONLINE"; online.className="online";
+
+    const t=parseFloat(d1[`field${FIELD_CENTER}`]);
+    const w=parseFloat(d1[`field${FIELD_LEFT}`]);
+
+    if(!isNaN(t)){
+      gaugeCenter.refresh(t);
+      trend.textContent=lastTemp ? (t>lastTemp?"🔼":t<lastTemp?"🔽":"➖") : "➖";
+
+      status.className="";
+      if(t<minTemp){ status.textContent="Nízká teplota"; status.classList.add("status-low"); playSound("low"); }
+      else if(t>maxTemp){ status.textContent="Vysoká teplota"; status.classList.add("status-high"); playSound("high"); }
+      else{ status.textContent="Ideální teplota"; status.classList.add("status-ok"); }
+
+      lastTemp=t;
+    }
+
+    if(!isNaN(w)) gaugeLeft.refresh(w);
+
+    const d2=await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`).then(r=>r.json());
+    const o=parseFloat(d2[`field${FIELD_RIGHT}`]);
+    if(!isNaN(o)) gaugeRight.refresh(o);
+
+  }catch{
+    online.textContent="OFFLINE";
+    online.className="offline";
+  }
+}
+
+setInterval(load,15000);
 setInterval(()=>clock.textContent=new Date().toLocaleTimeString("cs-CZ"),1000);
+load();
 </script>
 
 </body>
