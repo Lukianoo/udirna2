@@ -38,7 +38,7 @@ h1{
 .online{ background:#1f7a1f; }
 .offline{ background:#7a1f1f; }
 
-#fullscreen,#muteBtn{
+#muteBtn{
   background:#333;
   color:#fff;
   border:none;
@@ -199,6 +199,7 @@ let lastTemp=null;
 let MAX_HISTORY=240;
 let history=[];
 
+/* ===== UI ===== */
 function updateUI(){
   minVal.textContent=minTemp;
   maxVal.textContent=maxTemp;
@@ -207,11 +208,34 @@ function updateUI(){
 }
 updateUI();
 
+/* ===== GAUGE CENTER WITH COLORS ===== */
+let gaugeCenter;
+
+function createCenterGauge(value=0){
+  document.getElementById("gauge-center").innerHTML="";
+  gaugeCenter=new JustGage({
+    id:"gauge-center",
+    min:0,
+    max:120,
+    value:value,
+    label:"°C",
+    pointer:true,
+    customSectors:[
+      { color:"#4da6ff", lo:0, hi:minTemp },
+      { color:"#33ff66", lo:minTemp, hi:maxTemp },
+      { color:"#ff5555", lo:maxTemp, hi:120 }
+    ]
+  });
+}
+createCenterGauge();
+
+/* ===== CONTROLS ===== */
 function changeMin(v){
   if(minTemp+v<maxTemp){
     minTemp+=v;
     localStorage.minTemp=minTemp;
     updateUI();
+    createCenterGauge(gaugeCenter.config.value);
   }
 }
 function changeMax(v){
@@ -219,6 +243,7 @@ function changeMax(v){
     maxTemp+=v;
     localStorage.maxTemp=maxTemp;
     updateUI();
+    createCenterGauge(gaugeCenter.config.value);
   }
 }
 
@@ -228,6 +253,7 @@ muteBtn.onclick=()=>{
   updateUI();
 };
 
+/* ===== GRAPH ===== */
 const graph=document.getElementById("graph");
 const ctx=graph.getContext("2d");
 const PAD_L=45, PAD_B=20;
@@ -285,21 +311,22 @@ function drawGraph(){
   ctx.stroke();
 }
 
+/* ===== OTHER GAUGES ===== */
 const gaugeLeft=new JustGage({id:"gauge-left",min:0,max:100,value:0});
-const gaugeCenter=new JustGage({id:"gauge-center",min:0,max:120,value:0,label:"°C"});
 const gaugeRight=new JustGage({id:"gauge-right",min:-30,max:40,value:0,decimals:1,label:"°C"});
 
-function play(sound){
+/* ===== ALARM ===== */
+function play(s){
   if(!muted){
-    sound.currentTime=0;
-    sound.play();
+    s.currentTime=0;
+    s.play();
   }
 }
-
 function testAlarm(){
   play(sndAlarm);
 }
 
+/* ===== LOAD DATA ===== */
 async function load(){
   try{
     const d1=await (await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`)).json();
@@ -314,9 +341,8 @@ async function load(){
       if(history.length>MAX_HISTORY) history.shift();
       drawGraph();
 
-      if(lastTemp!==null){
-        trend.textContent = t>lastTemp ? "⬆" : t<lastTemp ? "⬇" : "➖";
-      }
+      if(lastTemp!==null)
+        trend.textContent=t>lastTemp?"⬆":t<lastTemp?"⬇":"➖";
       lastTemp=t;
 
       status.className="";
