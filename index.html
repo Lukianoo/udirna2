@@ -91,6 +91,23 @@ h1{
   background:#111;
 }
 
+.historyBtns{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  margin-top:6px;
+}
+
+.historyBtns button{
+  padding:3px 10px;
+  font-size:14px;
+}
+
+.historyBtns button.active{
+  background:#33ff66;
+  color:#000;
+}
+
 @media(max-width:900px){
   h1{ font-size:26px; margin:15px; }
   #temp-status{ font-size:24px; margin:15px; }
@@ -126,6 +143,12 @@ h1{
   <div id="trend">➖</div>
   <div id="gauge-center" style="height:240px"></div>
   <canvas id="graph"></canvas>
+
+  <div class="historyBtns">
+    <button onclick="setHistory(240,this)" class="active">1h</button>
+    <button onclick="setHistory(720,this)">3h</button>
+    <button onclick="setHistory(1440,this)">6h</button>
+  </div>
 
   <div class="controls">
     <div>
@@ -173,8 +196,16 @@ let maxTemp = Number(localStorage.maxTemp ?? 85);
 let muted = localStorage.muted === "1";
 let lastTemp = null;
 
-const MAX_HISTORY = 240;
+let MAX_HISTORY = 240;   // výchozí 1h
 let history=[];
+
+function setHistory(v,btn){
+  MAX_HISTORY=v;
+  history=history.slice(-MAX_HISTORY);
+  document.querySelectorAll(".historyBtns button").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  drawGraph();
+}
 
 function updateUI(){
   minVal.textContent=minTemp;
@@ -269,9 +300,7 @@ function drawGraph(){
   });
   ctx.stroke();
 
-  /* === TEĎ ČÁRA === */
   ctx.strokeStyle="rgba(255,255,255,0.6)";
-  ctx.lineWidth=1;
   ctx.beginPath();
   ctx.moveTo(graph.width-1,0);
   ctx.lineTo(graph.width-1,graph.height);
