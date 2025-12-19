@@ -1,220 +1,154 @@
 <!DOCTYPE html>
 <html lang="cs">
 <head>
-<meta charset="UTF-8">
-<title>Panel udírny</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <title>Panel udírny</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- JustGage -->
-<script src="https://cdn.jsdelivr.net/npm/raphael@2.3.0/raphael.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/justgage@1.4.0/justgage.min.js"></script>
+  <!-- JustGage + dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/raphael@2.3.0/raphael.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/justgage@1.4.0/justgage.min.js"></script>
 
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<style>
-body{
-  margin:0;
-  font-family:Segoe UI,Tahoma,sans-serif;
-  background:#121212;
-  color:#fff;
-}
-h1.header{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin:20px 40px;
-  font-size:36px;
-}
-#clock{font-size:20px;opacity:.8}
-
-#temp-status{
-  text-align:center;
-  font-size:32px;
-  font-weight:bold;
-  margin-bottom:15px;
-}
-
-.status-low{color:#3399ff}
-.status-ok{color:#33cc33}
-.status-high{color:#ff3333}
-
-.panel{
-  display:grid;
-  grid-template-columns:1fr 1.5fr 1fr;
-  gap:25px;
-  padding:0 40px;
-  max-width:1400px;
-  margin:auto;
-}
-
-.gauge{
-  background:#1e1e1e;
-  border-radius:22px;
-  padding:15px;
-  text-align:center;
-}
-
-.gauge.big{transform:scale(1.15)}
-.label{opacity:.8;margin-top:6px}
-
-.history{
-  margin-top:10px;
-  background:#111;
-  border-radius:12px;
-  padding:6px;
-}
-.history canvas{
-  height:140px!important;
-  width:100%!important;
-}
-
-#fullscreen-btn{
-  position:fixed;
-  bottom:20px;
-  right:20px;
-  padding:10px 18px;
-  font-size:16px;
-}
-
-footer{
-  text-align:center;
-  opacity:.6;
-  margin:10px;
-}
-</style>
+  <style>
+    body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #121212; color: #fff; }
+    h1.header { display: flex; justify-content: space-between; align-items: center; margin: 20px 40px; font-size: 36px; letter-spacing: 1px; }
+    #clock { font-size: 20px; opacity: 0.8; }
+    #temp-status { text-align: center; font-size: 36px; font-weight: bold; margin: 0 0 20px 0; padding: 10px 0; border-radius: 10px; background: linear-gradient(90deg, #222, #333); box-shadow: 0 0 20px rgba(255,255,255,0.1); }
+    .status-low { color: #3399ff; }
+    .status-ok { color: #33cc33; }
+    .status-high { color: #ff3333; }
+    .panel { display: grid; grid-template-columns: 1fr 1.5fr 1fr; gap: 30px; padding: 20px 40px; max-width: 1400px; margin: auto; align-items: start; }
+    .gauge { background: #1e1e1e; border-radius: 25px; padding: 15px; box-shadow: 0 4px 30px rgba(0,0,0,0.5); text-align: center; transition: transform 0.2s, box-shadow 0.2s; }
+    .gauge:hover { transform: scale(1.02); box-shadow: 0 8px 40px rgba(255,255,255,0.2); }
+    .gauge.big { transform: scale(1.2); }
+    .gauge.small { transform: scale(0.95); }
+    .label { margin-top: 8px; font-size: 16px; opacity: 0.85; color: #ddd; }
+    .gauge-title { font-size: 32px; font-weight: bold; margin-bottom: 15px; text-align: center; color: #ffffff; }
+    .alarm-settings { text-align: center; margin: 30px 0; }
+    .alarm-settings input, .alarm-settings select { width: 60px; font-size: 16px; padding: 5px; margin: 0 10px; border-radius: 5px; border: none; text-align: center; }
+    .alarm-settings button { font-size: 16px; padding: 5px 15px; margin-left: 10px; border-radius: 5px; border: none; background-color: #33cc33; color: #fff; cursor: pointer; }
+    .alarm-settings select { background-color: #444; color: #fff; }
+    footer { text-align: center; font-size: 14px; opacity: 0.6; margin: 20px 0 30px; position: relative; }
+    #fullscreen-btn { position: fixed; bottom: 20px; right: 20px; font-size: 16px; padding: 10px 20px; background-color: #ff9933; color: #fff; border: none; border-radius: 10px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+    #fullscreen-btn:hover { background-color: #ffaa33; }
+  </style>
 </head>
-
 <body>
 
 <h1 class="header">🔥 Panel udírny <span id="clock">--:--:--</span></h1>
 <div id="temp-status">Čekám na data…</div>
 
 <div class="panel">
+  <div class="gauge small">
+    <div id="gauge-left" style="width:100%; height:240px;"></div>
+    <div class="label">WiFi signál [%]</div>
+  </div>
 
-<!-- WIFI + GRAF -->
-<div class="gauge">
-  <div id="gauge-left" style="height:220px"></div>
-  <div class="label">WiFi signál [%]</div>
+  <div class="gauge big">
+    <div class="gauge-title">Teplota v udírně</div>
+    <div id="gauge-center" style="width:100%; height:300px;"></div>
+    <div class="label">[°C]</div>
+  </div>
 
-  <div class="history">
-    <canvas id="historyChart"></canvas>
+  <div class="gauge small">
+    <div id="gauge-right" style="width:100%; height:240px;"></div>
+    <div class="label">Venkovní teplota [°C]</div>
   </div>
 </div>
 
-<!-- STŘED -->
-<div class="gauge big">
-  <div id="gauge-center" style="height:280px"></div>
-  <div class="label">Teplota v udírně [°C]</div>
+<div class="alarm-settings">
+  <span>Zvukový alarm: </span>
+  Min: <input type="number" id="alarm-min" value="0"> °C
+  <select id="alarm-sound-min">
+    <option value="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg">Alarm 1</option>
+    <option value="https://actions.google.com/sounds/v1/alarms/beep_short.ogg">Alarm 2</option>
+    <option value="https://actions.google.com/sounds/v1/alarms/medium_bell_ring.ogg">Alarm 3</option>
+  </select>
+  Max: <input type="number" id="alarm-max" value="120"> °C
+  <select id="alarm-sound-max">
+    <option value="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg">Alarm 1</option>
+    <option value="https://actions.google.com/sounds/v1/alarms/beep_short.ogg">Alarm 2</option>
+    <option value="https://actions.google.com/sounds/v1/alarms/medium_bell_ring.ogg">Alarm 3</option>
+  </select>
+  <button onclick="saveAlarmSettings()">Uložit</button>
+  <button onclick="testAlarm()">Test</button>
 </div>
 
-<!-- VENEK -->
-<div class="gauge">
-  <div id="gauge-right" style="height:220px"></div>
-  <div class="label">Venkovní teplota [°C]</div>
-</div>
-
-</div>
-
-<button id="fullscreen-btn" onclick="toggleFull()">Fullscreen</button>
+<button id="fullscreen-btn" onclick="toggleFullScreen()">Full Screen</button>
 
 <footer>
-<div id="update-time">---</div>
+  <div id="update-time">Čekám na data…</div>
 </footer>
 
 <script>
-/* ==== KONFIG ==== */
-const CHANNEL_MAIN="260804";
-const CHANNEL_OUT="231269";
+  const CHANNEL_LEFT_CENTER = "260804";
+  const CHANNEL_RIGHT = "231269";
+  const FIELD_LEFT = 2;
+  const FIELD_CENTER = 1;
+  const FIELD_RIGHT = 4;
 
-/* ==== GAUGE ==== */
-const gWifi=new JustGage({id:"gauge-left",min:0,max:100,value:0});
-const gCenter=new JustGage({id:"gauge-center",min:0,max:120,value:0});
-const gOut=new JustGage({id:"gauge-right",min:-30,max:40,value:0});
+  const gaugeLeft = new JustGage({ id: "gauge-left", value: 0, min: 0, max: 100, title: "WiFi", label: "%", levelColors: ["#ff3333", "#ffcc00", "#33cc33"], valueFontColor: "#ffffff", valueFontSize: 70 });
+  const gaugeCenter = new JustGage({ id: "gauge-center", value: 0, min: 0, max: 120, title: "Udírna", label: "°C", levelColors: ["#3399ff", "#33cc33", "#ff3333"], valueFontColor: "#ffffff", valueFontSize: 80 });
+  const gaugeRight = new JustGage({ id: "gauge-right", value: 0, min: -30, max: 40, title: "Venek", label: "°C", levelColors: ["#3399ff", "#33cc33", "#ff9933"], valueFontColor: "#ffffff", valueFontSize: 70 });
 
-/* ==== GRAF ==== */
-let historyChart=null;
+  let alarmMin = parseFloat(document.getElementById('alarm-min').value);
+  let alarmMax = parseFloat(document.getElementById('alarm-max').value);
+  let alarmSoundMin = document.getElementById('alarm-sound-min').value;
+  let alarmSoundMax = document.getElementById('alarm-sound-max').value;
 
-/* ==== DATA ==== */
-async function loadData(){
-  try{
-    const r=await fetch(`https://api.thingspeak.com/channels/${CHANNEL_MAIN}/feeds/last.json`);
-    const d=await r.json();
-
-    const temp=parseFloat(d.field1);
-    const wifi=parseFloat(d.field2);
-
-    if(!isNaN(temp)) gCenter.refresh(temp);
-    if(!isNaN(wifi)) gWifi.refresh(wifi);
-
-    const s=document.getElementById("temp-status");
-    s.className="";
-    if(temp<75){s.textContent="Nízká teplota";s.classList.add("status-low")}
-    else if(temp<=85){s.textContent="Ideální teplota";s.classList.add("status-ok")}
-    else{s.textContent="Vysoká teplota";s.classList.add("status-high")}
-
-    document.getElementById("update-time").innerText=
-      "Aktualizace: "+new Date(d.created_at).toLocaleString("cs-CZ");
-
-    const r2=await fetch(`https://api.thingspeak.com/channels/${CHANNEL_OUT}/feeds/last.json`);
-    const d2=await r2.json();
-    const out=parseFloat(d2.field4);
-    if(!isNaN(out)) gOut.refresh(out);
-
-  }catch(e){console.error(e)}
-}
-
-/* ==== HISTORIE 10h ==== */
-async function loadHistory(){
-  const r=await fetch(`https://api.thingspeak.com/channels/${CHANNEL_MAIN}/feeds.json?results=600`);
-  const d=await r.json();
-  const labels=[],values=[];
-  d.feeds.forEach(f=>{
-    if(f.field1){
-      labels.push(new Date(f.created_at).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"}));
-      values.push(parseFloat(f.field1));
-    }
-  });
-  renderChart(labels,values);
-}
-
-function renderChart(l,v){
-  const ctx=document.getElementById("historyChart");
-  if(historyChart){
-    historyChart.data.labels=l;
-    historyChart.data.datasets[0].data=v;
-    historyChart.update();
-    return;
+  function saveAlarmSettings() {
+    alarmMin = parseFloat(document.getElementById('alarm-min').value);
+    alarmMax = parseFloat(document.getElementById('alarm-max').value);
+    alarmSoundMin = document.getElementById('alarm-sound-min').value;
+    alarmSoundMax = document.getElementById('alarm-sound-max').value;
+    alert(`Alarm nastaven: Min ${alarmMin}°C, Max ${alarmMax}°C`);
   }
-  historyChart=new Chart(ctx,{
-    type:"line",
-    data:{labels:l,datasets:[{data:v,borderWidth:2,tension:.3,pointRadius:0}]},
-    options:{
-      responsive:true,
-      maintainAspectRatio:false,
-      plugins:{legend:{display:false}},
-      scales:{
-        x:{ticks:{color:"#aaa"},grid:{color:"#333"}},
-        y:{ticks:{color:"#aaa"},grid:{color:"#333"}}
-      }
+
+  function testAlarm() {
+    playAlarm(alarmSoundMin);
+    setTimeout(() => playAlarm(alarmSoundMax), 1000);
+  }
+
+  async function loadThingSpeak() {
+    try {
+      let res = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`);
+      let data = await res.json();
+
+      const centerValue = parseFloat(data[`field${FIELD_CENTER}`]);
+      gaugeCenter.refresh(centerValue);
+
+      const statusEl = document.getElementById('temp-status');
+      statusEl.className = '';
+      if (centerValue < 75) { statusEl.innerText = 'Nízká teplota'; statusEl.classList.add('status-low'); }
+      else if (centerValue <= 85) { statusEl.innerText = 'Ideální teplota'; statusEl.classList.add('status-ok'); }
+      else { statusEl.innerText = 'Pozor vysoká teplota'; statusEl.classList.add('status-high'); }
+
+      if (centerValue <= alarmMin) { playAlarm(alarmSoundMin); }
+      else if (centerValue >= alarmMax) { playAlarm(alarmSoundMax); }
+
+    } catch(e) {
+      console.error('Chyba při čtení ThingSpeak', e);
     }
-  });
-}
+  }
 
-/* ==== FULL ==== */
-function toggleFull(){
-  if(!document.fullscreenElement)
-    document.documentElement.requestFullscreen();
-  else document.exitFullscreen();
-}
+  function playAlarm(sound) {
+    const audio = new Audio(sound);
+    audio.play();
+  }
 
-/* ==== CLOCK ==== */
-setInterval(()=>clock.textContent=new Date().toLocaleTimeString("cs-CZ"),1000);
+  function toggleFullScreen() {
+    if (!document.fullscreenElement) { document.documentElement.requestFullscreen(); }
+    else { if (document.exitFullscreen) { document.exitFullscreen(); } }
+  }
 
-/* ==== START ==== */
-loadData(); loadHistory();
-setInterval(loadData,15000);
-setInterval(loadHistory,300000);
+  loadThingSpeak();
+  setInterval(loadThingSpeak, 15000);
+
+  function updateClock() {
+    document.getElementById('clock').innerText = new Date().toLocaleTimeString('cs-CZ');
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
 </script>
 
 </body>
