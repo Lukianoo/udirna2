@@ -217,8 +217,25 @@ function updateUI(){
 updateUI();
 
 /* ===== GAUGES ===== */
-const gaugeLeft=new JustGage({id:"gauge-left",min:0,max:100,value:0});
-const gaugeRight=new JustGage({id:"gauge-right",min:-30,max:40,value:0,decimals:1,label:"°C"});
+const gaugeLeft=new JustGage({
+  id:"gauge-left",
+  min:0,
+  max:100,
+  value:0,
+  valueFontColor:"#ffffff",
+  labelFontColor:"#ffffff"
+});
+
+const gaugeRight=new JustGage({
+  id:"gauge-right",
+  min:-30,
+  max:40,
+  value:0,
+  decimals:1,
+  label:"°C",
+  valueFontColor:"#ffffff",
+  labelFontColor:"#ffffff"
+});
 
 let gaugeCenter;
 function createCenterGauge(value=0){
@@ -389,6 +406,7 @@ load();
 
 </body>
 </html>
+
 
 
 
