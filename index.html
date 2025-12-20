@@ -431,7 +431,19 @@ history.push({ temp: t, time: ts });
       drawGraph();
 
       if(lastTemp!==null)
-        trend.textContent=t>lastTemp?"⬆":t<lastTemp?"⬇":"➖";
+       if(t > lastTemp){
+  trend.textContent = "⬆";
+  trend.style.color = "#ff5555";
+}
+else if(t < lastTemp){
+  trend.textContent = "⬇";
+  trend.style.color = "#4da6ff";
+}
+else{
+  trend.textContent = "➖";
+  trend.style.color = "#aaa";
+}
+
       lastTemp=t;
 
       status.className="";
@@ -460,6 +472,7 @@ load();
 
 </body>
 </html>
+
 
 
 
