@@ -424,7 +424,8 @@ async function load(){
 
     if(!isNaN(t)){
       gaugeCenter.refresh(t);
-      history.push({ temp: t, time: Date.now() });
+      const ts = new Date(d1.created_at).getTime();
+history.push({ temp: t, time: ts });
 
       if(history.length>MAX_HISTORY) history.shift();
       drawGraph();
@@ -459,6 +460,7 @@ load();
 
 </body>
 </html>
+
 
 
 
