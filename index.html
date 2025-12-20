@@ -330,6 +330,25 @@ function drawGraph(){
     ctx.stroke();
     ctx.fillText(val+"°C",6,yy+12);
   }
+  // ===== LIMIT 80°C – přerušovaná čára =====
+if (80 >= minG && 80 <= maxG) {
+  ctx.save();
+  ctx.setLineDash([6, 6]);          // přerušovaná
+  ctx.strokeStyle="#ffcc00";        // barva čáry
+  ctx.lineWidth=2;
+
+  const y80 = y(80);
+  ctx.beginPath();
+  ctx.moveTo(PAD_L, y80);
+  ctx.lineTo(graph.width, y80);
+  ctx.stroke();
+
+  ctx.setLineDash([]);              // zpět na plnou
+  ctx.fillStyle="#ffcc00";
+  ctx.fillText("80°C", 6, y80 - 4); // popisek vlevo
+  ctx.restore();
+}
+
 
   ctx.strokeStyle="#33ff66";
   ctx.lineWidth=2;
@@ -406,6 +425,7 @@ load();
 
 </body>
 </html>
+
 
 
 
