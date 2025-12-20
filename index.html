@@ -192,27 +192,12 @@ const maxVal=document.getElementById("maxVal");
 const trend=document.getElementById("trend");
 const status=document.getElementById("temp-status");
 
-const sndLow=document.getElementById("sound-low");
-const sndHigh=document.getElementById("sound-high");
-const sndAlarm=document.getElementById("sound-alarm");
-
 let minTemp=Number(localStorage.minTemp ?? 75);
 let maxTemp=Number(localStorage.maxTemp ?? 85);
 let muted=localStorage.muted==="1";
 let lastTemp=null;
 
-let MAX_HISTORY=240;
-let history=[];
-
-function updateUI(){
-  minVal.textContent=minTemp;
-  maxVal.textContent=maxTemp;
-  muteBtn.textContent=muted?"ALARM OFF":"ALARM ON";
-  muteBtn.classList.toggle("off",muted);
-}
-updateUI();
-
-/* ===== GAUGES (HODNOTY BÍLÉ) ===== */
+/* ===== GAUGES ===== */
 const gaugeLeft=new JustGage({
   id:"gauge-left",
   min:0,
@@ -245,6 +230,7 @@ function createCenterGauge(value=0){
     pointer:true,
     valueFontColor:"#ffffff",
     labelFontColor:"#ffffff",
+    valueFontSize:"80px",
     customSectors:[
       {color:"#4da6ff", lo:0, hi:minTemp},
       {color:"#33ff66", lo:minTemp, hi:maxTemp},
@@ -254,8 +240,7 @@ function createCenterGauge(value=0){
 }
 createCenterGauge();
 
-/* ===== zbytek kódu beze změn ===== */
-
+/* ===== DATA ===== */
 async function load(){
   try{
     const d1=await (await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`)).json();
@@ -266,9 +251,6 @@ async function load(){
 
     if(!isNaN(t)){
       gaugeCenter.refresh(t);
-      history.push({temp:t});
-      if(history.length>MAX_HISTORY) history.shift();
-
       if(lastTemp!==null)
         trend.textContent=t>lastTemp?"⬆":t<lastTemp?"⬇":"➖";
       lastTemp=t;
