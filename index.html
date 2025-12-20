@@ -124,7 +124,9 @@ h1{
 <div id="top-right">
   <span id="online" class="offline">OFFLINE</span>
   <span id="clock"></span>
-  <button id="muteBtn">ALARM ON</button>
+  <span id="lastUpdate" style="font-size:14px;opacity:.8"></span>
+
+ <button id="muteBtn">ALARM ON</button>
   <button id="fsBtn">⛶</button>
 </div>
 </h1>
@@ -197,6 +199,8 @@ const status=document.getElementById("temp-status");
 const sndLow=document.getElementById("sound-low");
 const sndHigh=document.getElementById("sound-high");
 const sndAlarm=document.getElementById("sound-alarm");
+const lastUpdate = document.getElementById("lastUpdate");
+
 
 /* ===== STATE ===== */
 let minTemp=Number(localStorage.minTemp ?? 75);
@@ -403,6 +407,12 @@ async function load(){
   try{
     const d1=await (await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`)).json();
     online.textContent="ONLINE"; online.className="online";
+    if (d1.created_at) {
+  const tsTime = new Date(d1.created_at);
+  lastUpdate.textContent =
+    "TS: " + tsTime.toLocaleTimeString("cs-CZ", {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+}
+
 
     let t=parseFloat(d1[`field${FIELD_CENTER}`]);
     let w=parseFloat(d1[`field${FIELD_LEFT}`]);
@@ -444,6 +454,7 @@ load();
 
 </body>
 </html>
+
 
 
 
