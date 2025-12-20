@@ -94,8 +94,6 @@ h1{
 <div id="top-right">
   <span id="online" class="offline">OFFLINE</span>
   <span id="clock"></span>
-  <button id="muteBtn">ALARM ON</button>
-  <button id="fsBtn">⛶</button>
 </div>
 </h1>
 
@@ -112,6 +110,7 @@ h1{
   <div style="font-size:28px">Teplota v udírně</div>
   <div id="trend">➖</div>
   <div id="gauge-center" style="height:240px"></div>
+  <canvas id="graph"></canvas>
 </div>
 
 <div class="gauge">
@@ -122,11 +121,17 @@ h1{
 </div>
 
 <script>
+/* ===== DATA ===== */
 const CHANNEL_LEFT_CENTER="260804", CHANNEL_RIGHT="231269";
 const FIELD_CENTER=1, FIELD_LEFT=2, FIELD_RIGHT=4;
 
+/* ===== STATE ===== */
 let minTemp=75;
 let maxTemp=85;
+let lastTemp=null;
+
+let MAX_HISTORY=240;
+let history=[];
 
 /* ===== GAUGES ===== */
 const gaugeLeft=new JustGage({
@@ -134,8 +139,7 @@ const gaugeLeft=new JustGage({
   min:0,
   max:100,
   value:0,
-  valueFontColor:"#fff",
-  labelFontColor:"#fff"
+  valueFontColor:"#fff"
 });
 
 const gaugeRight=new JustGage({
@@ -143,9 +147,9 @@ const gaugeRight=new JustGage({
   min:-30,
   max:40,
   value:0,
+  decimals:1,
   label:"°C",
-  valueFontColor:"#fff",
-  labelFontColor:"#fff"
+  valueFontColor:"#fff"
 });
 
 let gaugeCenter;
@@ -159,46 +163,78 @@ function createCenterGauge(value=0){
     label:"°C",
     pointer:true,
     valueFontColor:"#fff",
-    labelFontColor:"#fff",
+    valueFontSize:"80px",
     customSectors:[
       {color:"#4da6ff", lo:0, hi:minTemp},
       {color:"#33ff66", lo:minTemp, hi:maxTemp},
       {color:"#ff5555", lo:maxTemp, hi:120}
     ]
   });
-
-  /* JEDINÁ ZMĚNA – zvětšení čísla */
-  gaugeCenter.txt.attr({ "font-size": "80px" });
 }
 createCenterGauge();
 
-/* ===== DATA ===== */
+/* ===== GRAPH ===== */
+const graph=document.getElementById("graph");
+const ctx=graph.getContext("2d");
+
+function resizeGraph(){
+  graph.width=graph.clientWidth;
+  graph.height=graph.clientHeight;
+}
+window.addEventListener("resize",resizeGraph);
+resizeGraph();
+
+function drawGraph(){
+  ctx.clearRect(0,0,graph.width,graph.height);
+  if(history.length<2) return;
+
+  let min=Math.min(...history)-5;
+  let max=Math.max(...history)+5;
+
+  ctx.strokeStyle="#33ff66";
+  ctx.beginPath();
+
+  history.forEach((t,i)=>{
+    let x=i*(graph.width/(history.length-1));
+    let y=graph.height-(t-min)/(max-min)*graph.height;
+    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+  });
+  ctx.stroke();
+}
+
+/* ===== LOAD ===== */
 async function load(){
   try{
     const d1=await (await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`)).json();
-    document.getElementById("online").textContent="ONLINE";
-    document.getElementById("online").className="online";
-
     let t=parseFloat(d1[`field${FIELD_CENTER}`]);
     let w=parseFloat(d1[`field${FIELD_LEFT}`]);
 
-    if(!isNaN(t)) gaugeCenter.refresh(t);
+    if(!isNaN(t)){
+      gaugeCenter.refresh(t);
+      history.push(t);
+      if(history.length>MAX_HISTORY) history.shift();
+      drawGraph();
+
+      document.getElementById("trend").textContent=
+        lastTemp===null?"➖":t>lastTemp?"⬆":t<lastTemp?"⬇":"➖";
+      lastTemp=t;
+    }
+
     if(!isNaN(w)) gaugeLeft.refresh(w);
 
     const d2=await (await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`)).json();
     let o=parseFloat(d2[`field${FIELD_RIGHT}`]);
     if(!isNaN(o)) gaugeRight.refresh(o);
 
-  }catch{
-    document.getElementById("online").textContent="OFFLINE";
-    document.getElementById("online").className="offline";
+  }catch(e){
+    console.error(e);
   }
 }
 
 setInterval(load,15000);
+setInterval(()=>clock.textContent=new Date().toLocaleTimeString("cs-CZ"),1000);
 load();
 </script>
 
 </body>
 </html>
-
