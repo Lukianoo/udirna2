@@ -345,7 +345,8 @@ if (80 >= minG && 80 <= maxG) {
 
   ctx.setLineDash([]);              // zpět na plnou
   ctx.fillStyle="#ffcc00";
-  ctx.fillText("80°C", 6, y80 - 4); // popisek vlevo
+ ctx.fillText("80°C", PAD_L + 6, y80 - 4);  //popisek v pravo
+
   ctx.restore();
 }
 
@@ -443,6 +444,7 @@ load();
 
 </body>
 </html>
+
 
 
 
