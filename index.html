@@ -358,6 +358,23 @@ if (80 >= minG && 80 <= maxG) {
     i?ctx.lineTo(x,y(h.temp)):ctx.moveTo(x,y(h.temp));
   });
   ctx.stroke();
+  // === časová osa ===
+ctx.fillStyle = "#aaa";
+ctx.font = "11px Segoe UI";
+
+const steps = 4; // kolik popisků času
+for (let i = 0; i <= steps; i++) {
+  const idx = Math.round(i * (history.length - 1) / steps);
+  const h = history[idx];
+  if (!h) continue;
+
+  const x = PAD_L + idx * (W / (history.length - 1));
+  const t = new Date(h.time);
+  const label = t.toLocaleTimeString("cs-CZ", {hour:"2-digit", minute:"2-digit"});
+
+  ctx.fillText(label, x - 14, graph.height - 4);
+}
+
 }
 
 /* ===== ALARM ===== */
@@ -391,7 +408,8 @@ async function load(){
 
     if(!isNaN(t)){
       gaugeCenter.refresh(t);
-      history.push({temp:t});
+      history.push({ temp: t, time: Date.now() });
+
       if(history.length>MAX_HISTORY) history.shift();
       drawGraph();
 
@@ -425,6 +443,7 @@ load();
 
 </body>
 </html>
+
 
 
 
