@@ -84,36 +84,6 @@ h1{
   border-radius:12px;
   background:#111;
 }
-
-.historyBtns{
-  display:flex;
-  justify-content:center;
-  gap:8px;
-  margin-top:6px;
-}
-.historyBtns button{
-  background:#333;
-  color:#fff;
-  border:none;
-  border-radius:6px;
-  padding:4px 10px;
-}
-.historyBtns button.active{
-  background:#33ff66;
-  color:#000;
-}
-.controls{
-  display:flex;
-  justify-content:space-around;
-  margin-top:10px;
-}
-
-@media(max-width:900px){
-  h1{ font-size:26px; margin:15px; }
-  #temp-status{ font-size:24px; margin:15px; }
-  .panel{ grid-template-columns:1fr; padding:10px; }
-  .big{ transform:none; }
-}
 </style>
 </head>
 
@@ -142,29 +112,6 @@ h1{
   <div style="font-size:28px">Teplota v udírně</div>
   <div id="trend">➖</div>
   <div id="gauge-center" style="height:240px"></div>
-
-  <canvas id="graph"></canvas>
-
-  <div class="historyBtns">
-    <button class="active" onclick="setHistory(240,this)">1h</button>
-    <button onclick="setHistory(720,this)">3h</button>
-    <button onclick="setHistory(1440,this)">6h</button>
-  </div>
-
-  <div class="controls">
-    <div>
-      MIN <span id="minVal"></span>°C<br>
-      <button onclick="changeMin(-1)">−</button>
-      <button onclick="changeMin(1)">+</button>
-    </div>
-    <div>
-      MAX <span id="maxVal"></span>°C<br>
-      <button onclick="changeMax(-1)">−</button>
-      <button onclick="changeMax(1)">+</button>
-    </div>
-  </div>
-
-  <button onclick="testAlarm()">🔊 Test alarmu</button>
 </div>
 
 <div class="gauge">
@@ -174,28 +121,12 @@ h1{
 
 </div>
 
-<audio id="sound-low" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
-<audio id="sound-high" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
-<audio id="sound-alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
-
 <script>
 const CHANNEL_LEFT_CENTER="260804", CHANNEL_RIGHT="231269";
 const FIELD_CENTER=1, FIELD_LEFT=2, FIELD_RIGHT=4;
 
-const clock=document.getElementById("clock");
-const online=document.getElementById("online");
-const muteBtn=document.getElementById("muteBtn");
-const fsBtn=document.getElementById("fsBtn");
-
-const minVal=document.getElementById("minVal");
-const maxVal=document.getElementById("maxVal");
-const trend=document.getElementById("trend");
-const status=document.getElementById("temp-status");
-
-let minTemp=Number(localStorage.minTemp ?? 75);
-let maxTemp=Number(localStorage.maxTemp ?? 85);
-let muted=localStorage.muted==="1";
-let lastTemp=null;
+let minTemp=75;
+let maxTemp=85;
 
 /* ===== GAUGES ===== */
 const gaugeLeft=new JustGage({
@@ -203,8 +134,8 @@ const gaugeLeft=new JustGage({
   min:0,
   max:100,
   value:0,
-  valueFontColor:"#ffffff",
-  labelFontColor:"#ffffff"
+  valueFontColor:"#fff",
+  labelFontColor:"#fff"
 });
 
 const gaugeRight=new JustGage({
@@ -212,10 +143,9 @@ const gaugeRight=new JustGage({
   min:-30,
   max:40,
   value:0,
-  decimals:1,
   label:"°C",
-  valueFontColor:"#ffffff",
-  labelFontColor:"#ffffff"
+  valueFontColor:"#fff",
+  labelFontColor:"#fff"
 });
 
 let gaugeCenter;
@@ -228,15 +158,17 @@ function createCenterGauge(value=0){
     value:value,
     label:"°C",
     pointer:true,
-    valueFontColor:"#ffffff",
-    labelFontColor:"#ffffff",
-    valueFontSize:"130px",
+    valueFontColor:"#fff",
+    labelFontColor:"#fff",
     customSectors:[
       {color:"#4da6ff", lo:0, hi:minTemp},
       {color:"#33ff66", lo:minTemp, hi:maxTemp},
       {color:"#ff5555", lo:maxTemp, hi:120}
     ]
   });
+
+  /* JEDINÁ ZMĚNA – zvětšení čísla */
+  gaugeCenter.txt.attr({ "font-size": "80px" });
 }
 createCenterGauge();
 
@@ -244,23 +176,13 @@ createCenterGauge();
 async function load(){
   try{
     const d1=await (await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`)).json();
-    online.textContent="ONLINE"; online.className="online";
+    document.getElementById("online").textContent="ONLINE";
+    document.getElementById("online").className="online";
 
     let t=parseFloat(d1[`field${FIELD_CENTER}`]);
     let w=parseFloat(d1[`field${FIELD_LEFT}`]);
 
-    if(!isNaN(t)){
-      gaugeCenter.refresh(t);
-      if(lastTemp!==null)
-        trend.textContent=t>lastTemp?"⬆":t<lastTemp?"⬇":"➖";
-      lastTemp=t;
-
-      status.className="";
-      if(t<minTemp){ status.textContent="POD MINIMUM"; status.classList.add("status-low"); }
-      else if(t>maxTemp){ status.textContent="NAD MAXIMUM"; status.classList.add("status-high"); }
-      else{ status.textContent="TEPLOTA OK"; status.classList.add("status-ok"); }
-    }
-
+    if(!isNaN(t)) gaugeCenter.refresh(t);
     if(!isNaN(w)) gaugeLeft.refresh(w);
 
     const d2=await (await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`)).json();
@@ -268,13 +190,12 @@ async function load(){
     if(!isNaN(o)) gaugeRight.refresh(o);
 
   }catch{
-    online.textContent="OFFLINE";
-    online.className="offline";
+    document.getElementById("online").textContent="OFFLINE";
+    document.getElementById("online").className="offline";
   }
 }
 
 setInterval(load,15000);
-setInterval(()=>clock.textContent=new Date().toLocaleTimeString("cs-CZ"),1000);
 load();
 </script>
 
