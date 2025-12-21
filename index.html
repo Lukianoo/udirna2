@@ -154,6 +154,13 @@ h1{
   margin-top: 20px;
   display:block;
 }
+.gauge-label{
+  margin-top: 8px;
+  font-size: 28px;      /* 👈 ZVĚTŠENO */
+  font-weight: 800;     /* 👈 VÝRAZNÉ */
+  letter-spacing: 0.6px;
+  text-align: center;
+}
 
 
 
@@ -185,7 +192,8 @@ h1{
 
 <div class="gauge">
   <div id="gauge-left" style="height:240px"></div>
-  WiFi signál [%]
+  <div class="gauge-label">WiFi signál [%]</div>
+
 </div>
 
 <div class="gauge big">
@@ -219,7 +227,8 @@ h1{
 
 <div class="gauge">
   <div id="gauge-right" style="height:240px"></div>
-  Venkovní teplota [°C]
+  <div class="gauge-label">Venkovní teplota [°C]</div>
+
 </div>
 
 </div>
@@ -562,6 +571,7 @@ load();
 
 </body>
 </html>
+
 
 
 
