@@ -21,7 +21,7 @@ h1{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  margin:0 40px 10px;   /* skoro žádná mezera nahoře */
+  margin:0 40px 3px;   /* skoro žádná mezera nahoře */
   font-size:36px;
   line-height:1.0;      /* KLÍČOVÉ – zmenší výšku řádku */
 }
@@ -116,12 +116,12 @@ h1{
 }
 
 @media(max-width:900px){
-  h1{
-    font-size:26px;
-    margin:0 15px 8px;
-    line-height:1.1;
-  }
+  h1{ font-size:26px; margin:15px; }
+  #temp-status{ font-size:24px; margin:15px; }
+  .panel{ grid-template-columns:1fr; padding:10px; }
+  .big{ transform:none; }
 }
+
 
   .title-left{
   display:flex;
@@ -496,6 +496,7 @@ load();
 
 </body>
 </html>
+
 
 
 
