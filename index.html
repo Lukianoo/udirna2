@@ -135,33 +135,13 @@ h1{
   opacity:0.95;
   margin-top: 20px;
 }
-@keyframes blinkBlue{
-  0%   { opacity:1; }
-  50%  { opacity:0.3; }
-  100% { opacity:1; }
-}
-
-@keyframes blinkRed{
-  0%   { opacity:1; }
-  50%  { opacity:0.3; }
-  100% { opacity:1; }
-}
-
-/* aktivní blikání */
-.blink-low{
-  animation: blinkBlue 1s infinite;
-}
-
-.blink-high{
-  animation: blinkRed 0.8s infinite;
-}
 
 </style>
 </head>
 
 <body>
 
-
+<h1>
   <div class="title-left">
     🔥 Panel udírny
     <img src="logo-elektroservis.png" alt="Elektroservis Lukáš Zachrla" class="logo">
@@ -176,7 +156,7 @@ h1{
  <button id="muteBtn">ALARM ON</button>
   <button id="fsBtn">⛶</button>
 </div>
-
+</h1>
 
 <div id="temp-status">Čekám na data…</div>
 
@@ -490,23 +470,11 @@ else{
 
       lastTemp=t;
 
-    status.className="";
-
-if(t < minTemp){
-  status.textContent = "POD MINIMUM";
-  status.classList.add("status-low", "blink-low");
-  play(sndLow);
-}
-else if(t > maxTemp){
-  status.textContent = "NAD MAXIMUM";
-  status.classList.add("status-high", "blink-high");
-  play(sndHigh);
-}
-else{
-  status.textContent = "TEPLOTA OK";
-  status.classList.add("status-ok");
-}
-
+      status.className="";
+      if(t<minTemp){ status.textContent="TEPLOTA POD MINIMUM"; status.classList.add("status-low"); play(sndLow); }
+      else if(t>maxTemp){ status.textContent="TEPLOTA NAD MAXIMUM"; status.classList.add("status-high"); play(sndHigh); }
+      else{ status.textContent="IDEÁLNÍ TEPLOTA"; status.classList.add("status-ok"); }
+    }
 
     if(!isNaN(w)) gaugeLeft.refresh(w);
 
@@ -528,15 +496,6 @@ load();
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
 
 
 
