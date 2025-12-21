@@ -136,17 +136,39 @@ h1{
   opacity:0.95;
   margin-top: 20px;
 }
+.flame{
+  display:inline-block;
+  margin-right:6px;
+  animation: flamePulse 1.6s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+@keyframes flamePulse{
+  0%{
+    transform: translateY(0) scale(1);
+    filter: brightness(1);
+  }
+  50%{
+    transform: translateY(-2px) scale(1.08);
+    filter: brightness(1.2);
+  }
+  100%{
+    transform: translateY(0) scale(1);
+    filter: brightness(1);
+  }
+}
 
 </style>
 </head>
 
 <body>
 
-<h1>
-  <div class="title-left">
-    🔥 Panel udírny
-    <img src="logo-elektroservis.png" alt="Elektroservis Lukáš Zachrla" class="logo">
-  </div>
+<div class="title-left">
+  <span class="flame">🔥</span>
+  <span class="title-text">Panel udírny</span>
+  <img src="logo-elektroservis.png" class="logo">
+</div>
+
 
   <div id="top-right">
 
@@ -497,6 +519,7 @@ load();
 
 </body>
 </html>
+
 
 
 
