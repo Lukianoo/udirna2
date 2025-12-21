@@ -506,7 +506,7 @@ else{
   status.textContent = "IDEÁLNÍ TEPLOTA";
   status.classList.add("status-ok");
 }
-
+}
     if(!isNaN(w)) gaugeLeft.refresh(w);
 
     const d2=await (await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`)).json();
@@ -527,6 +527,7 @@ load();
 
 </body>
 </html>
+
 
 
 
