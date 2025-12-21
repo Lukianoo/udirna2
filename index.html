@@ -298,26 +298,42 @@ const gaugeRight=new JustGage({
 });
 
 let gaugeCenter;
-function createCenterGauge(value=0){
-  document.getElementById("gauge-center").innerHTML="";
-  gaugeCenter=new JustGage({
-    id:"gauge-center",
-    min:0,
-    max:120,
-    value:value,
-    label:"°C",
-    pointer:true,
-    valueFontColor:"#ffffff",
-labelFontColor:"#ffffff",
-valueMinFontSize: 80,
 
-    customSectors:[
-      {color:"#4da6ff", lo:0, hi:minTemp},
-      {color:"#33ff66", lo:minTemp, hi:maxTemp},
-      {color:"#ff5555", lo:maxTemp, hi:120}
+function createCenterGauge(value = 0) {
+  document.getElementById("gauge-center").innerHTML = "";
+
+  gaugeCenter = new JustGage({
+    id: "gauge-center",
+    min: 0,
+    max: 120,
+    value: value,
+    label: "°C",
+    pointer: true,
+    gaugeWidthScale: 0.6,   // tloušťka barevného pasu
+    valueFontColor: "#ffffff",
+    labelFontColor: "#ffffff",
+    valueMinFontSize: 80,
+
+    customSectors: [
+      {
+        color: "#4da6ff", // pod minimem
+        lo: 0,
+        hi: minTemp
+      },
+      {
+        color: "#33ff66", // ideální rozsah
+        lo: minTemp,
+        hi: maxTemp
+      },
+      {
+        color: "#ff5555", // nad maximem
+        lo: maxTemp,
+        hi: 120
+      }
     ]
   });
 }
+
 createCenterGauge();
 
 /* ===== CONTROLS ===== */
@@ -534,6 +550,7 @@ load();
 
 </body>
 </html>
+
 
 
 
