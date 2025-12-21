@@ -471,9 +471,9 @@ else{
       lastTemp=t;
 
       status.className="";
-      if(t<minTemp){ status.textContent="POD MINIMUM"; status.classList.add("status-low"); play(sndLow); }
-      else if(t>maxTemp){ status.textContent="NAD MAXIMUM"; status.classList.add("status-high"); play(sndHigh); }
-      else{ status.textContent="TEPLOTA OK"; status.classList.add("status-ok"); }
+      if(t<minTemp){ status.textContent="TEPLOTA POD MINIMUM"; status.classList.add("status-low"); play(sndLow); }
+      else if(t>maxTemp){ status.textContent="TEPLOTA NAD MAXIMUM"; status.classList.add("status-high"); play(sndHigh); }
+      else{ status.textContent="IDEÁLNÍ TEPLOTA"; status.classList.add("status-ok"); }
     }
 
     if(!isNaN(w)) gaugeLeft.refresh(w);
@@ -496,6 +496,7 @@ load();
 
 </body>
 </html>
+
 
 
 
