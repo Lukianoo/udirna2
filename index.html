@@ -119,14 +119,31 @@ h1{
   .panel{ grid-template-columns:1fr; padding:10px; }
   .big{ transform:none; }
 }
+  .title-left{
+  display:flex;
+  align-items:center;
+  gap:16px;
+}
+
+.logo{
+  height:38px;
+  filter: brightness(0) invert(1);
+  opacity:0.95;
+}
+
 </style>
 </head>
 
 <body>
 
 <h1>
-🔥 Panel udírny power by Zachrč
-<div id="top-right">
+  <div class="title-left">
+    🔥 Panel udírny
+    <img src="logo-elektroservis.png" alt="Elektroservis Lukáš Zachrla" class="logo">
+  </div>
+
+  <div id="top-right">
+
   <span id="online" class="offline">OFFLINE</span>
   <span id="clock"></span>
   <span id="lastUpdate" style="font-size:36px;opacity:.8"></span>
@@ -474,6 +491,7 @@ load();
 
 </body>
 </html>
+
 
 
 
