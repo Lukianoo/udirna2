@@ -9,7 +9,9 @@
 <script src="https://cdn.jsdelivr.net/npm/justgage@1.4.0/justgage.min.js"></script>
 
 <style>
-body{
+body
+  <div id="scale-root">
+  {
   margin:0;
   font-family:'Segoe UI',Tahoma,Verdana,sans-serif;
   color:#fff;
@@ -154,11 +156,16 @@ h1{
   opacity:0.95;
   margin-top: 20px;
 }
-
+/* === AUTO SCALE ROOT === */
+#scale-root{
+  transform-origin: top center;
+  width: 1400px;
+  margin: 0 auto;
+}
 
 </style>
 </head>
-
+</div>
 <body>
 
 <h1>
@@ -523,10 +530,21 @@ else{
 setInterval(load,15000);
 setInterval(()=>clock.textContent=new Date().toLocaleTimeString("cs-CZ"),1000);
 load();
+function autoScale(){
+  const root = document.getElementById("scale-root");
+  const designHeight = 900;   // výška návrhu panelu
+  const scale = Math.min(window.innerHeight / designHeight, 1);
+  root.style.transform = `scale(${scale})`;
+}
+
+window.addEventListener("resize", autoScale);
+window.addEventListener("load", autoScale);
+  
 </script>
 
 </body>
 </html>
+
 
 
 
