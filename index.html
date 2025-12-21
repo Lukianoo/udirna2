@@ -17,21 +17,13 @@ body{
     radial-gradient(circle at top, #3a3a3a 0%, #1a1a1a 55%),
     linear-gradient(180deg, #1a1a1a 0%, #0e0e0e 100%);
 }
-
-/* === AUTO SCALE ROOT === */
-#scale-root{
-  transform-origin: top center;
-  width:1400px;
-  margin:0 auto;
-}
-
 h1{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  margin:-75px 40px 3px;
+  margin:-75px 40px 3px;   /* ⬅️ TADY SE ZTRATÍ TY 2 CM */
   font-size:36px;
-  line-height:1.1;
+  line-height:1.1;        /* VRAŤ NA ROZUMNOU HODNOTU */
 }
 
 #top-right{
@@ -39,10 +31,9 @@ h1{
   align-items:center;
   gap:12px;
 }
-
-#clock,
+  #clock,
 #lastUpdate{
-  font-size:36px;
+  font-size:36px;   /* ← stejná velikost */
 }
 
 #online{
@@ -66,11 +57,11 @@ h1{
 
 #temp-status{
   margin:20px 40px;
-  padding:20px;
+  padding:20px;          /* trochu víc prostoru */
   border-radius:14px;
-  font-size:40px;
-  font-weight:800;
-  letter-spacing:1px;
+  font-size:40px;        /* ⬅️ VĚTŠÍ TEXT */
+  font-weight:800;       /* výraznější */
+  letter-spacing:1px;   /* profi vzhled */
   text-align:center;
   background:#202020;
 }
@@ -78,15 +69,25 @@ h1{
 .status-low{ color:#4da6ff; }
 .status-ok{ color:#33ff66; }
 .status-high{ color:#ff5555; }
-
 @keyframes blinkBlue{
-  0%{opacity:1}50%{opacity:.3}100%{opacity:1}
+  0%   { opacity:1; }
+  50%  { opacity:0.3; }
+  100% { opacity:1; }
 }
+
 @keyframes blinkRed{
-  0%{opacity:1}50%{opacity:.3}100%{opacity:1}
+  0%   { opacity:1; }
+  50%  { opacity:0.3; }
+  100% { opacity:1; }
 }
-.blink-low{ animation:blinkBlue 1.2s infinite; }
-.blink-high{ animation:blinkRed .8s infinite; }
+
+.blink-low{
+  animation: blinkBlue 1.2s infinite;
+}
+
+.blink-high{
+  animation: blinkRed 0.8s infinite;
+}
 
 .panel{
   display:grid;
@@ -96,7 +97,6 @@ h1{
   max-width:1400px;
   margin:auto;
 }
-
 .gauge{
   background:linear-gradient(180deg,#242424,#161616);
   border-radius:28px;
@@ -130,14 +130,19 @@ h1{
   background:#33ff66;
   color:#000;
 }
-
 .controls{
   display:flex;
   justify-content:space-around;
   margin-top:10px;
 }
 
-.title-left{
+@media(max-width:900px){
+  h1{ font-size:26px; margin:15px; }
+  #temp-status{ font-size:24px; margin:15px; }
+  .panel{ grid-template-columns:1fr; padding:10px; }
+  .big{ transform:none; }
+}
+  .title-left{
   display:flex;
   align-items:center;
   gap:16px;
@@ -147,13 +152,14 @@ h1{
   height:220px;
   filter: brightness(0) invert(1);
   opacity:0.95;
-  margin-top:20px;
+  margin-top: 20px;
 }
+
+
 </style>
 </head>
 
 <body>
-<div id="scale-root">
 
 <h1>
   <div class="title-left">
@@ -162,12 +168,14 @@ h1{
   </div>
 
   <div id="top-right">
-    <span id="online" class="offline">OFFLINE</span>
-    <span id="clock"></span>
-    <span id="lastUpdate" style="opacity:.8"></span>
-    <button id="muteBtn">ALARM ON</button>
-    <button id="fsBtn">⛶</button>
-  </div>
+
+  <span id="online" class="offline">OFFLINE</span>
+  <span id="clock"></span>
+  <span id="lastUpdate" style="font-size:36px;opacity:.8"></span>
+
+ <button id="muteBtn">ALARM ON</button>
+  <button id="fsBtn">⛶</button>
+</div>
 </h1>
 
 <div id="temp-status">Čekám na data…</div>
@@ -219,8 +227,6 @@ h1{
 <audio id="sound-high" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 <audio id="sound-alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
 
-</div>
-
 <script>
 /* ===== CONSTANTS ===== */
 const CHANNEL_LEFT_CENTER="260804", CHANNEL_RIGHT="231269";
@@ -240,7 +246,8 @@ const status=document.getElementById("temp-status");
 const sndLow=document.getElementById("sound-low");
 const sndHigh=document.getElementById("sound-high");
 const sndAlarm=document.getElementById("sound-alarm");
-const lastUpdate=document.getElementById("lastUpdate");
+const lastUpdate = document.getElementById("lastUpdate");
+
 
 /* ===== STATE ===== */
 let minTemp=Number(localStorage.minTemp ?? 75);
@@ -266,10 +273,11 @@ const gaugeLeft=new JustGage({
   min:0,
   max:100,
   value:0,
-  label:"%",
+  label:"%",              // ← TO JE ONO
   valueFontColor:"#ffffff",
   labelFontColor:"#ffffff"
 });
+
 
 const gaugeRight=new JustGage({
   id:"gauge-right",
@@ -293,8 +301,9 @@ function createCenterGauge(value=0){
     label:"°C",
     pointer:true,
     valueFontColor:"#ffffff",
-    labelFontColor:"#ffffff",
-    valueMinFontSize:80,
+labelFontColor:"#ffffff",
+valueMinFontSize: 80,
+
     customSectors:[
       {color:"#4da6ff", lo:0, hi:minTemp},
       {color:"#33ff66", lo:minTemp, hi:maxTemp},
@@ -348,19 +357,200 @@ function setHistory(v,btn){
   drawGraph();
 }
 
-/* … celý zbytek JS (graf, alarmy, load(), fullscreen, timery)  
-   ZŮSTÁVÁ IDENTICKÝ – nebyl odstraněn ani zkrácen … */
+function drawGraph(){
+  ctx.clearRect(0,0,graph.width,graph.height);
+  if(history.length<2) return;
 
-/* ===== AUTO SCALE ===== */
-function autoScale(){
-  const root=document.getElementById("scale-root");
-  const designHeight=900;
-  const scale=Math.min(window.innerHeight/designHeight,1);
-  root.style.transform=`scale(${scale})`;
+  const temps=history.map(h=>h.temp);
+  let minG=Math.min(minTemp-5,...temps);
+  let maxG=Math.max(maxTemp+5,...temps);
+  if(maxG===minG) return;
+
+  const W=graph.width-PAD_L;
+  const H=graph.height-PAD_B;
+  const y=v=>H-(v-minG)/(maxG-minG)*H;
+
+  ctx.strokeStyle="rgba(255,255,255,0.15)";
+  ctx.fillStyle="#aaa";
+  ctx.font="12px Segoe UI";
+
+  for(let i=0;i<=4;i++){
+    let yy=i*(H/4);
+    let val=(maxG-i*(maxG-minG)/4).toFixed(0);
+    ctx.beginPath();
+    ctx.moveTo(PAD_L,yy);
+    ctx.lineTo(graph.width,yy);
+    ctx.stroke();
+    ctx.fillText(val+"°C",6,yy+12);
+  }
+  // ===== LIMIT 80°C – přerušovaná čára =====
+if (80 >= minG && 80 <= maxG) {
+  ctx.save();
+  ctx.setLineDash([6, 6]);          // přerušovaná
+  ctx.strokeStyle="#ffcc00";        // barva čáry
+  ctx.lineWidth=2;
+
+  const y80 = y(80);
+  ctx.beginPath();
+  ctx.moveTo(PAD_L, y80);
+  ctx.lineTo(graph.width, y80);
+  ctx.stroke();
+
+  ctx.setLineDash([]);              // zpět na plnou
+  ctx.fillStyle="#ffcc00";
+ ctx.fillText("80°C", PAD_L + 6, y80 - 4);  //popisek v pravo
+
+  ctx.restore();
 }
-window.addEventListener("resize",autoScale);
-window.addEventListener("load",autoScale);
+
+
+  ctx.strokeStyle="#33ff66";
+  ctx.lineWidth=2;
+  ctx.beginPath();
+  history.forEach((h,i)=>{
+    let x=PAD_L+i*(W/(history.length-1));
+    i?ctx.lineTo(x,y(h.temp)):ctx.moveTo(x,y(h.temp));
+  });
+  ctx.stroke();
+  // === časová osa ===
+ctx.fillStyle = "#aaa";
+ctx.font = "11px Segoe UI";
+
+const steps = 4; // kolik popisků času
+for (let i = 0; i <= steps; i++) {
+  const idx = Math.round(i * (history.length - 1) / steps);
+  const h = history[idx];
+  if (!h) continue;
+
+  const x = PAD_L + idx * (W / (history.length - 1));
+  const t = new Date(h.time);
+  const label = t.toLocaleTimeString("cs-CZ", {hour:"2-digit", minute:"2-digit"});
+
+  ctx.fillText(label, x - 14, graph.height - 4);
+}
+
+}
+
+/* ===== ALARM ===== */
+function play(s){
+  if(!muted){
+    s.currentTime=0;
+    s.play();
+  }
+}
+function testAlarm(){ play(sndAlarm); }
+
+/* ===== FULLSCREEN ===== */
+fsBtn.onclick=()=>{
+  if(!document.fullscreenElement)
+    document.documentElement.requestFullscreen();
+  else
+    document.exitFullscreen();
+};
+document.addEventListener("fullscreenchange",()=>{
+  fsBtn.textContent=document.fullscreenElement?"⛶❌":"⛶";
+});
+
+/* ===== DATA LOAD ===== */
+async function load(){
+  try{
+    const d1=await (await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`)).json();
+    online.textContent="ONLINE"; online.className="online";
+    if (d1.created_at) {
+  const tsTime = new Date(d1.created_at);
+  lastUpdate.textContent =
+    "Aktualizace: " + tsTime.toLocaleTimeString("cs-CZ", {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+}
+
+
+    let t=parseFloat(d1[`field${FIELD_CENTER}`]);
+    let w=parseFloat(d1[`field${FIELD_LEFT}`]);
+
+    if(!isNaN(t)){
+      gaugeCenter.refresh(t);
+      const ts = new Date(d1.created_at).getTime();
+history.push({ temp: t, time: ts });
+
+      if(history.length>MAX_HISTORY) history.shift();
+      drawGraph();
+
+      if(lastTemp!==null)
+       if(t > lastTemp){
+  trend.textContent = "⬆";
+  trend.style.color = "#ff5555";
+}
+else if(t < lastTemp){
+  trend.textContent = "⬇";
+  trend.style.color = "#4da6ff";
+}
+else{
+  trend.textContent = "➖";
+  trend.style.color = "#aaa";
+}
+
+      lastTemp=t;
+
+    status.className="";
+
+if(t < minTemp){
+  status.textContent = "TEPLOTA POD MINIMUM";
+  status.classList.add("status-low", "blink-low");
+  play(sndLow);
+}
+else if(t > maxTemp){
+  status.textContent = "TEPLOTA NAD MAXIMUM";
+  status.classList.add("status-high", "blink-high");
+  play(sndHigh);
+}
+else{
+  status.textContent = "IDEÁLNÍ TEPLOTA";
+  status.classList.add("status-ok");
+}
+}
+    if(!isNaN(w)) gaugeLeft.refresh(w);
+
+    const d2=await (await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`)).json();
+    let o=parseFloat(d2[`field${FIELD_RIGHT}`]);
+    if(!isNaN(o)) gaugeRight.refresh(o);
+
+  }catch{
+    online.textContent="OFFLINE";
+    online.className="offline";
+  }
+}
+
+/* ===== TIMERS ===== */
+setInterval(load,15000);
+setInterval(()=>clock.textContent=new Date().toLocaleTimeString("cs-CZ"),1000);
+load();
 </script>
 
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
