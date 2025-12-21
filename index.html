@@ -269,20 +269,32 @@ function updateUI(){
 updateUI();
 
 /* ===== GAUGES ===== */
-const gaugeLeft=new JustGage({
-  id:"gauge-left",
-  min:0,
-  max:100,
-  value:0,
-  label:"%",
+const gaugeLeft = new JustGage({
+  id: "gauge-left",
+  min: 0,
+  max: 100,
+  value: 0,
+  label: "%",
+  gaugeWidthScale: 0.6,
+  pointer: false,
+
+  // barvy podle síly signálu
   levelColors: [
-    "#ff5555", // 0–33 % (špatný)
-    "#ffcc00", // 34–66 % (střed)
-    "#33ff66"  // 67–100 % (dobrý)
+    "#ff5555", // 0–33
+    "#ffcc00", // 34–66
+    "#33ff66"  // 67–100
   ],
-  valueFontColor:"#ffffff",
-  labelFontColor:"#ffffff"
+
+  // zobrazí min / max hodnoty
+  showMinMax: true,
+  minTxt: "0",
+  maxTxt: "100",
+
+  valueFontColor: "#ffffff",
+  labelFontColor: "#ffffff",
+  valueFontSize: 40
 });
+
 
 
 
@@ -550,6 +562,7 @@ load();
 
 </body>
 </html>
+
 
 
 
