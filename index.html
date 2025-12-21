@@ -21,12 +21,9 @@ h1{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  margin:-20px 40px 3px;   /* ⬅️ TADY SE ZTRATÍ TY 2 CM */
+  margin:20px 40px;
   font-size:36px;
-  line-height:1.1;        /* VRAŤ NA ROZUMNOU HODNOTU */
 }
-
-
 #top-right{
   display:flex;
   align-items:center;
@@ -122,8 +119,6 @@ h1{
   .panel{ grid-template-columns:1fr; padding:10px; }
   .big{ transform:none; }
 }
-
-
   .title-left{
   display:flex;
   align-items:center;
@@ -136,39 +131,17 @@ h1{
   opacity:0.95;
   margin-top: 20px;
 }
-.flame{
-  display:inline-block;
-  margin-right:6px;
-  animation: flamePulse 1.6s ease-in-out infinite;
-  transform-origin: center bottom;
-}
-
-@keyframes flamePulse{
-  0%{
-    transform: translateY(0) scale(1);
-    filter: brightness(1);
-  }
-  50%{
-    transform: translateY(-2px) scale(1.08);
-    filter: brightness(1.2);
-  }
-  100%{
-    transform: translateY(0) scale(1);
-    filter: brightness(1);
-  }
-}
 
 </style>
 </head>
 
 <body>
 
-<div class="title-left">
-  <span class="flame">🔥</span>
-  <span class="title-text">Panel udírny</span>
-  <img src="logo-elektroservis.png" class="logo">
-</div>
-
+<h1>
+  <div class="title-left">
+    🔥 Panel udírny
+    <img src="logo-elektroservis.png" alt="Elektroservis Lukáš Zachrla" class="logo">
+  </div>
 
   <div id="top-right">
 
@@ -179,7 +152,7 @@ h1{
  <button id="muteBtn">ALARM ON</button>
   <button id="fsBtn">⛶</button>
 </div>
-
+</h1>
 
 <div id="temp-status">Čekám na data…</div>
 
@@ -519,15 +492,6 @@ load();
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
 
 
 
