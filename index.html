@@ -21,8 +21,8 @@ body{
 /* === AUTO SCALE ROOT === */
 #scale-root{
   transform-origin: top center;
-  width: 1400px;
-  margin: 0 auto;
+  width:1400px;
+  margin:0 auto;
 }
 
 h1{
@@ -85,7 +85,6 @@ h1{
 @keyframes blinkRed{
   0%{opacity:1}50%{opacity:.3}100%{opacity:1}
 }
-
 .blink-low{ animation:blinkBlue 1.2s infinite; }
 .blink-high{ animation:blinkRed .8s infinite; }
 
@@ -104,7 +103,6 @@ h1{
   padding:18px;
   text-align:center;
 }
-
 .big{ transform:scale(1.15); }
 
 #graph{
@@ -162,7 +160,6 @@ h1{
     🔥 Panel udírny
     <img src="logo-elektroservis.png" class="logo">
   </div>
-
   <div id="top-right">
     <span id="online" class="offline">OFFLINE</span>
     <span id="clock"></span>
@@ -193,9 +190,14 @@ h1{
   </div>
 </div>
 
+<audio id="sound-low" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+<audio id="sound-high" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+<audio id="sound-alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
+
 </div>
 
 <script>
+/* ===== AUTO SCALE ===== */
 function autoScale(){
   const root=document.getElementById("scale-root");
   const designHeight=900;
@@ -205,6 +207,7 @@ function autoScale(){
 window.addEventListener("resize",autoScale);
 window.addEventListener("load",autoScale);
 
+/* ===== CLOCK ===== */
 setInterval(()=>clock.textContent=new Date().toLocaleTimeString("cs-CZ"),1000);
 </script>
 
