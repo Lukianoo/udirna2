@@ -537,17 +537,17 @@ else{
     status.className="";
 
 if(t < minTemp){
-  status.textContent = "NÍZKÁ TEPLOTA UDÍRNY PŘILOŽ !!!";
+  status.textContent = "NÍZKÁ TEPLOTA PŘILOŽ !!!";
   status.classList.add("status-low", "blink-low");
   play(sndLow);
 }
 else if(t > maxTemp){
-  status.textContent = "VYSOKÁ TEPLOTA UDÍRNY ZKONTROLUJ !!!";
+  status.textContent = "VYSOKÁ TEPLOTA ZKONTROLUJ !!!";
   status.classList.add("status-high", "blink-high");
   play(sndHigh);
 }
 else{
-  status.textContent = "IDEÁLNÍ TEPLOTA UDÍRNY";
+  status.textContent = "IDEÁLNÍ TEPLOTA DEJ SI PANÁKA !!!";
   status.classList.add("status-ok");
 }
 }
@@ -571,6 +571,7 @@ load();
 
 </body>
 </html>
+
 
 
 
