@@ -485,7 +485,7 @@ const gaugeLeft = new JustGage({
   levelColors: ["#ff5555", "#ffcc00", "#33dd66"],
   valueFontColor: "#ffffff",
   labelFontColor: "#9a9aa2",
-  valueMinFontSize: 24
+  valueMinFontSize: 30
 });
 
 const gaugeRight = new JustGage({
@@ -498,7 +498,7 @@ const gaugeRight = new JustGage({
   levelColors: ["#4da6ff", "#33dd66", "#ff9933"],
   valueFontColor: "#ffffff",
   labelFontColor: "#9a9aa2",
-  valueMinFontSize: 24
+  valueMinFontSize: 30
 });
 
 let gaugeCenter;
@@ -516,7 +516,7 @@ function createCenterGauge(value = 0){
     gaugeColor: GAUGE_BG,
     valueFontColor: "#ffffff",
     labelFontColor: "#9a9aa2",
-    valueMinFontSize: 35,
+    valueMinFontSize: 40,
     // JustGage 1.4 chce objekt {percents, ranges}, ne pole
     customSectors: {
       percents: false,
