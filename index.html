@@ -70,7 +70,10 @@ header{
   font-weight:800;
 }
 .logo{
-  height:90px;
+  /* logo má kolem sebe hodně prázdného místa – zvětšíme ho
+     a záporným okrajem schováme prázdný prostor nahoře/dole */
+  height:210px;
+  margin:-65px 0;
   opacity:.95;
 }
 #top-right{
@@ -274,14 +277,51 @@ footer{
   text-align:center;
   color:#555;
   font-size:12px;
-  padding:0 0 16px;
+  padding:0 0 8px;
+}
+
+/* ===== VELKÁ OBRAZOVKA: VŠE SE VEJDE NA VÝŠKU (i ve fullscreenu) ===== */
+@media(min-width:1001px){
+  body{
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+    overflow:auto;
+  }
+  header{ width:100%; padding:1.2vh 40px .5vh; }
+  #temp-status{ font-size:clamp(22px,4.2vh,40px); padding:1.4vh; margin-top:.8vh; }
+  .panel{
+    flex:1;
+    min-height:0;
+    width:100%;
+    padding:1.8vh 40px 1.2vh;
+    grid-template-rows:100%;
+  }
+  .card{ padding:1.6vh 18px; }
+  .card-title{ font-size:clamp(18px,2.8vh,26px); }
+  .side-gauge{ height:28vh; }
+  .center-card{
+    height:100%;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+  }
+  #gauge-center{ height:25vh; flex:none; }
+  .graph-wrap{ flex:1; min-height:110px; }
+  #graph{ height:100%; }
+  .historyBtns{ margin-top:1vh; }
+  .stats{ margin-top:1.2vh; }
+  .stat{ padding:.6vh 4px; }
+  .stat b{ font-size:clamp(16px,2.4vh,22px); }
+  .controls{ margin-top:1.2vh; }
+  .bottom-row{ margin-top:1vh; }
 }
 
 /* ===== MOBIL ===== */
 @media(max-width:1000px){
   header{ padding:12px 15px; justify-content:center; }
   .title-left h1{ font-size:26px; }
-  .logo{ height:60px; }
+  .logo{ height:130px; margin:-40px 0; }
   #clock{ font-size:26px; }
   .wrap-status{ padding:0 15px; }
   #temp-status{ font-size:22px; padding:14px; }
@@ -445,7 +485,7 @@ const gaugeLeft = new JustGage({
   levelColors: ["#ff5555", "#ffcc00", "#33dd66"],
   valueFontColor: "#ffffff",
   labelFontColor: "#9a9aa2",
-  valueMinFontSize: 34
+  valueMinFontSize: 24
 });
 
 const gaugeRight = new JustGage({
@@ -458,7 +498,7 @@ const gaugeRight = new JustGage({
   levelColors: ["#4da6ff", "#33dd66", "#ff9933"],
   valueFontColor: "#ffffff",
   labelFontColor: "#9a9aa2",
-  valueMinFontSize: 34
+  valueMinFontSize: 24
 });
 
 let gaugeCenter;
@@ -476,7 +516,7 @@ function createCenterGauge(value = 0){
     gaugeColor: GAUGE_BG,
     valueFontColor: "#ffffff",
     labelFontColor: "#9a9aa2",
-    valueMinFontSize: 60,
+    valueMinFontSize: 22,
     // JustGage 1.4 chce objekt {percents, ranges}, ne pole
     customSectors: {
       percents: false,
@@ -539,6 +579,7 @@ fsBtn.onclick = () => {
 };
 document.addEventListener("fullscreenchange", () => {
   fsBtn.textContent = document.fullscreenElement ? "✕" : "⛶";
+  setTimeout(resizeGraph, 150);
 });
 
 let wakeLock = null;
