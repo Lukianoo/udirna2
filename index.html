@@ -4,610 +4,213 @@
 <meta charset="UTF-8">
 <title>Panel udírny</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#121212">
 
 <script src="https://cdn.jsdelivr.net/npm/raphael@2.3.0/raphael.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/justgage@1.4.0/justgage.min.js"></script>
 
 <style>
+:root{
+  --bg:#0f0f10;
+  --card:#1b1b1d;
+  --card2:#141416;
+  --line:#2c2c30;
+  --text:#f2f2f2;
+  --muted:#9a9aa2;
+  --low:#4da6ff;
+  --ok:#33dd66;
+  --high:#ff5555;
+  --warn:#ffcc00;
+  --ember:#ff7a1a;
+}
+*{ box-sizing:border-box; }
 body{
   margin:0;
   font-family:'Segoe UI',Tahoma,Verdana,sans-serif;
-  color:#fff;
+  color:var(--text);
+  min-height:100vh;
   background:
-    radial-gradient(circle at top, #3a3a3a 0%, #1a1a1a 55%),
-    linear-gradient(180deg, #1a1a1a 0%, #0e0e0e 100%);
+    radial-gradient(ellipse at 50% -10%, rgba(255,122,26,.18) 0%, transparent 55%),
+    radial-gradient(circle at top, #2a2a2c 0%, var(--bg) 60%);
+  background-attachment:fixed;
 }
-h1{
+button{
+  font:inherit;
+  color:var(--text);
+  background:#2a2a2e;
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:6px 14px;
+  cursor:pointer;
+  transition:background .15s, transform .05s;
+}
+button:hover{ background:#36363b; }
+button:active{ transform:scale(.96); }
+
+/* ===== HLAVIČKA ===== */
+header{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  margin:-75px 40px 3px;   /* ⬅️ TADY SE ZTRATÍ TY 2 CM */
-  font-size:36px;
-  line-height:1.1;        /* VRAŤ NA ROZUMNOU HODNOTU */
+  gap:20px;
+  flex-wrap:wrap;
+  padding:16px 40px 8px;
+  max-width:1500px;
+  margin:auto;
 }
-
+.title-left{
+  display:flex;
+  align-items:center;
+  gap:20px;
+}
+.title-left h1{
+  margin:0;
+  font-size:38px;
+  line-height:1.1;
+  font-weight:800;
+}
+.logo{
+  height:90px;
+  opacity:.95;
+}
 #top-right{
   display:flex;
   align-items:center;
   gap:12px;
+  flex-wrap:wrap;
 }
-  #clock,
-#lastUpdate{
-  font-size:36px;   /* ← stejná velikost */
+#clock{
+  font-size:38px;
+  font-weight:700;
+  font-variant-numeric:tabular-nums;
 }
-
-#online{
-  padding:4px 10px;
+.chip{
+  padding:5px 12px;
   border-radius:8px;
-  font-size:16px;
-  font-weight:bold;
+  font-size:15px;
+  font-weight:700;
+  letter-spacing:.5px;
 }
 .online{ background:#1f7a1f; }
 .offline{ background:#7a1f1f; }
+.stale{ background:#8a6a00; }
+#lastUpdate{
+  font-size:15px;
+  color:var(--muted);
+  text-align:right;
+  line-height:1.3;
+}
+#muteBtn.off{ background:#7a1f1f; border-color:#a33; }
 
-#muteBtn,#fsBtn{
-  background:#333;
-  color:#fff;
-  border:none;
-  border-radius:8px;
-  padding:4px 10px;
+/* ===== STAVOVÝ PRUH ===== */
+#temp-status{
+  max-width:1420px;
+  margin:12px auto 0;
+  padding:18px;
+  border-radius:16px;
+  font-size:40px;
+  font-weight:800;
+  letter-spacing:1px;
+  text-align:center;
+  background:var(--card2);
+  border:2px solid var(--line);
+  transition:border-color .3s, box-shadow .3s;
+}
+.wrap-status{ padding:0 40px; }
+.status-low { color:var(--low);  border-color:var(--low)  !important; box-shadow:0 0 30px rgba(77,166,255,.25); }
+.status-ok  { color:var(--ok);   border-color:var(--ok)   !important; box-shadow:0 0 30px rgba(51,221,102,.2); }
+.status-high{ color:var(--high); border-color:var(--high) !important; box-shadow:0 0 30px rgba(255,85,85,.3); }
+.status-nodata{ color:var(--warn); border-color:var(--warn) !important; }
+
+@keyframes blink{ 0%,100%{opacity:1} 50%{opacity:.35} }
+.blink-low { animation:blink 1.2s infinite; }
+.blink-high{ animation:blink .8s infinite; }
+
+#soundHint{
+  display:none;
+  max-width:1420px;
+  margin:10px auto 0;
+  padding:8px;
+  border-radius:10px;
+  background:#3a2a00;
+  color:var(--warn);
+  text-align:center;
+  font-weight:600;
   cursor:pointer;
 }
-#muteBtn.off{ background:#7a1f1f; }
 
-#temp-status{
-  margin:20px 40px;
-  padding:20px;          /* trochu víc prostoru */
-  border-radius:14px;
-  font-size:40px;        /* ⬅️ VĚTŠÍ TEXT */
-  font-weight:800;       /* výraznější */
-  letter-spacing:1px;   /* profi vzhled */
-  text-align:center;
-  background:#202020;
-}
-
-.status-low{ color:#4da6ff; }
-.status-ok{ color:#33ff66; }
-.status-high{ color:#ff5555; }
-@keyframes blinkBlue{
-  0%   { opacity:1; }
-  50%  { opacity:0.3; }
-  100% { opacity:1; }
-}
-
-@keyframes blinkRed{
-  0%   { opacity:1; }
-  50%  { opacity:0.3; }
-  100% { opacity:1; }
-}
-
-.blink-low{
-  animation: blinkBlue 1.2s infinite;
-}
-
-.blink-high{
-  animation: blinkRed 0.8s infinite;
-}
-
+/* ===== PANEL ===== */
 .panel{
   display:grid;
-  grid-template-columns:1fr 1.5fr 1fr;
-  gap:30px;
-  padding:20px 40px;
-  max-width:1400px;
+  grid-template-columns:1fr 1.6fr 1fr;
+  gap:24px;
+  padding:20px 40px 30px;
+  max-width:1500px;
   margin:auto;
+  align-items:start;
 }
-.gauge{
-  background:linear-gradient(180deg,#242424,#161616);
-  border-radius:28px;
+.card{
+  background:linear-gradient(180deg,var(--card),var(--card2));
+  border:1px solid var(--line);
+  border-radius:24px;
   padding:18px;
   text-align:center;
+  box-shadow:0 10px 30px rgba(0,0,0,.35);
 }
-.big{ transform:scale(1.15); }
+.card-title{
+  font-size:26px;
+  font-weight:800;
+  letter-spacing:.5px;
+}
+.side-gauge{ height:230px; }
+.sub{
+  color:var(--muted);
+  font-size:15px;
+  margin-top:4px;
+}
 
+#gauge-center{ height:250px; }
+
+.trend-row{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:12px;
+  font-size:20px;
+  margin-top:2px;
+}
+#trend{ font-size:30px; line-height:1; }
+#rate{ color:var(--muted); font-variant-numeric:tabular-nums; }
+
+/* ===== GRAF ===== */
+.graph-wrap{ position:relative; margin-top:10px; }
 #graph{
   width:100%;
-  height:180px;
-  margin-top:10px;
-  border-radius:12px;
-  background:#111;
+  height:220px;
+  display:block;
+  border-radius:14px;
+  background:#0c0c0d;
+  border:1px solid var(--line);
+  cursor:crosshair;
+}
+#tooltip{
+  position:absolute;
+  pointer-events:none;
+  background:rgba(20,20,22,.95);
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:4px 8px;
+  font-size:13px;
+  white-space:nowrap;
+  display:none;
+  transform:translate(-50%,-120%);
 }
 
 .historyBtns{
   display:flex;
   justify-content:center;
   gap:8px;
-  margin-top:6px;
-}
-.historyBtns button{
-  background:#333;
-  color:#fff;
-  border:none;
-  border-radius:6px;
-  padding:4px 10px;
-}
-.historyBtns button.active{
-  background:#33ff66;
-  color:#000;
-}
-.controls{
-  display:flex;
-  justify-content:space-around;
   margin-top:10px;
 }
-
-@media(max-width:900px){
-  h1{ font-size:26px; margin:15px; }
-  #temp-status{ font-size:24px; margin:15px; }
-  .panel{ grid-template-columns:1fr; padding:10px; }
-  .big{ transform:none; }
-}
-  .title-left{
-  display:flex;
-  align-items:center;
-  gap:16px;
-}
-
-.logo{
-  height:220px;
-  opacity:0.95;
-  margin-top: 20px;
-  display:block;
-}
-.gauge-label{
-  margin-top: 8px;
-  font-size: 28px;      /* 👈 ZVĚTŠENO */
-  font-weight: 800;     /* 👈 VÝRAZNÉ */
-  letter-spacing: 0.6px;
-  text-align: center;
-}
-
-
-
-</style>
-</head>
-
-<body>
-
-<h1>
-  <div class="title-left">
-    🔥 Panel udírny
-    <img src="logo-elektroservis.png" alt="Elektroservis Lukáš Zachrla" class="logo">
-  </div>
-
-  <div id="top-right">
-
-  <span id="online" class="offline">OFFLINE</span>
-  <span id="clock"></span>
-  <span id="lastUpdate" style="font-size:36px;opacity:.8"></span>
-
- <button id="muteBtn">ALARM ON</button>
-  <button id="fsBtn">⛶</button>
-</div>
-</h1>
-
-<div id="temp-status">Čekám na data…</div>
-
-<div class="panel">
-
-<div class="gauge">
-  <div id="gauge-left" style="height:240px"></div>
-  <div class="gauge-label">WiFi signál [%]</div>
-
-</div>
-
-<div class="gauge big">
-  <div style="font-size:28px">Teplota v udírně</div>
-  <div id="trend">➖</div>
-  <div id="gauge-center" style="height:240px"></div>
-
-  <canvas id="graph"></canvas>
-
-  <div class="historyBtns">
-    <button class="active" onclick="setHistory(240,this)">1h</button>
-    <button onclick="setHistory(720,this)">3h</button>
-    <button onclick="setHistory(1440,this)">6h</button>
-  </div>
-
-  <div class="controls">
-    <div>
-      MIN <span id="minVal"></span>°C<br>
-      <button onclick="changeMin(-1)">−</button>
-      <button onclick="changeMin(1)">+</button>
-    </div>
-    <div>
-      MAX <span id="maxVal"></span>°C<br>
-      <button onclick="changeMax(-1)">−</button>
-      <button onclick="changeMax(1)">+</button>
-    </div>
-  </div>
-
-  <button onclick="testAlarm()">🔊 Test alarmu</button>
-</div>
-
-<div class="gauge">
-  <div id="gauge-right" style="height:240px"></div>
-  <div class="gauge-label">Venkovní teplota [°C]</div>
-
-</div>
-
-</div>
-
-<audio id="sound-low" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
-<audio id="sound-high" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
-<audio id="sound-alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
-
-<script>
-/* ===== CONSTANTS ===== */
-const CHANNEL_LEFT_CENTER="260804", CHANNEL_RIGHT="231269";
-const FIELD_CENTER=1, FIELD_LEFT=2, FIELD_RIGHT=4;
-
-/* ===== ELEMENTS ===== */
-const clock=document.getElementById("clock");
-const online=document.getElementById("online");
-const muteBtn=document.getElementById("muteBtn");
-const fsBtn=document.getElementById("fsBtn");
-
-const minVal=document.getElementById("minVal");
-const maxVal=document.getElementById("maxVal");
-const trend=document.getElementById("trend");
-const status=document.getElementById("temp-status");
-
-const sndLow=document.getElementById("sound-low");
-const sndHigh=document.getElementById("sound-high");
-const sndAlarm=document.getElementById("sound-alarm");
-const lastUpdate = document.getElementById("lastUpdate");
-
-
-/* ===== STATE ===== */
-let minTemp=Number(localStorage.minTemp ?? 75);
-let maxTemp=Number(localStorage.maxTemp ?? 85);
-let muted=localStorage.muted==="1";
-let lastTemp=null;
-
-let MAX_HISTORY=240;
-let history=[];
-
-/* ===== UI ===== */
-function updateUI(){
-  minVal.textContent=minTemp;
-  maxVal.textContent=maxTemp;
-  muteBtn.textContent=muted?"ALARM OFF":"ALARM ON";
-  muteBtn.classList.toggle("off",muted);
-}
-updateUI();
-
-/* ===== GAUGES ===== */
-const gaugeLeft = new JustGage({
-  id: "gauge-left",
-  min: 0,
-  max: 100,
-  value: 0,
-  label: "%",
-  gaugeWidthScale: 1,
-  pointer: false,
-
-  // barvy podle síly signálu
-  levelColors: [
-    "#ff5555", // 0–33
-    "#ffcc00", // 34–66
-    "#33ff66"  // 67–100
-  ],
-
-  // zobrazí min / max hodnoty
-  showMinMax: true,
-  minTxt: "0",
-  maxTxt: "100",
-
-  valueFontColor: "#ffffff",
-  labelFontColor: "#ffffff",
-  valueFontSize: 40
-});
-
-
-
-
-const gaugeRight=new JustGage({
-  id:"gauge-right",
-  min:-30,
-  max:40,
-  value:0,
-  decimals:1,
-  label:"°C",
-  valueFontColor:"#ffffff",
-  labelFontColor:"#ffffff"
-});
-
-let gaugeCenter;
-
-function createCenterGauge(value = 0) {
-  document.getElementById("gauge-center").innerHTML = "";
-
-  gaugeCenter = new JustGage({
-    id: "gauge-center",
-    min: 0,
-    max: 120,
-    value: value,
-    label: "°C",
-    pointer: true,
-    gaugeWidthScale: 1,   // tloušťka barevného pasu
-    valueFontColor: "#ffffff",
-    labelFontColor: "#55ffdd",
-    valueMinFontSize: 80,
-
-    customSectors: [
-      {
-        color: "#4da6ff", // pod minimem
-        lo: 0,
-        hi: minTemp
-      },
-      {
-        color: "#33ff66", // ideální rozsah
-        lo: minTemp,
-        hi: maxTemp
-      },
-      {
-        color: "#ff5555", // nad maximem
-        lo: maxTemp,
-        hi: 120
-      }
-    ]
-  });
-}
-
-createCenterGauge();
-
-/* ===== CONTROLS ===== */
-function changeMin(v){
-  if(minTemp+v<maxTemp){
-    minTemp+=v;
-    localStorage.minTemp=minTemp;
-    updateUI();
-    createCenterGauge(gaugeCenter.config.value);
-  }
-}
-function changeMax(v){
-  if(maxTemp+v>minTemp){
-    maxTemp+=v;
-    localStorage.maxTemp=maxTemp;
-    updateUI();
-    createCenterGauge(gaugeCenter.config.value);
-  }
-}
-muteBtn.onclick=()=>{
-  muted=!muted;
-  localStorage.muted=muted?"1":"0";
-  updateUI();
-};
-
-/* ===== GRAPH ===== */
-const graph=document.getElementById("graph");
-const ctx=graph.getContext("2d");
-const PAD_L=45, PAD_B=20;
-
-function resizeGraph(){
-  graph.width=graph.clientWidth;
-  graph.height=graph.clientHeight;
-  drawGraph();
-}
-window.addEventListener("resize",resizeGraph);
-resizeGraph();
-
-function setHistory(v,btn){
-  MAX_HISTORY=v;
-  history=history.slice(-MAX_HISTORY);
-  document.querySelectorAll(".historyBtns button").forEach(b=>b.classList.remove("active"));
-  btn.classList.add("active");
-  drawGraph();
-}
-
-function drawGraph(){
-  ctx.clearRect(0,0,graph.width,graph.height);
-  if(history.length<2) return;
-
-  const temps=history.map(h=>h.temp);
-  let minG=Math.min(minTemp-5,...temps);
-  let maxG=Math.max(maxTemp+5,...temps);
-  if(maxG===minG) return;
-
-  const W=graph.width-PAD_L;
-  const H=graph.height-PAD_B;
-  const y=v=>H-(v-minG)/(maxG-minG)*H;
-
-  ctx.strokeStyle="rgba(255,255,255,0.15)";
-  ctx.fillStyle="#aaa";
-  ctx.font="12px Segoe UI";
-
-  for(let i=0;i<=4;i++){
-    let yy=i*(H/4);
-    let val=(maxG-i*(maxG-minG)/4).toFixed(0);
-    ctx.beginPath();
-    ctx.moveTo(PAD_L,yy);
-    ctx.lineTo(graph.width,yy);
-    ctx.stroke();
-    ctx.fillText(val+"°C",6,yy+12);
-  }
-  // ===== LIMIT 80°C – přerušovaná čára =====
-if (80 >= minG && 80 <= maxG) {
-  ctx.save();
-  ctx.setLineDash([6, 6]);          // přerušovaná
-  ctx.strokeStyle="#ffcc00";        // barva čáry
-  ctx.lineWidth=2;
-
-  const y80 = y(80);
-  ctx.beginPath();
-  ctx.moveTo(PAD_L, y80);
-  ctx.lineTo(graph.width, y80);
-  ctx.stroke();
-
-  ctx.setLineDash([]);              // zpět na plnou
-  ctx.fillStyle="#ffcc00";
- ctx.fillText("80°C", PAD_L + 6, y80 - 4);  //popisek v pravo
-
-  ctx.restore();
-}
-
-
-  ctx.strokeStyle="#33ff66";
-  ctx.lineWidth=2;
-  ctx.beginPath();
-  history.forEach((h,i)=>{
-    let x=PAD_L+i*(W/(history.length-1));
-    i?ctx.lineTo(x,y(h.temp)):ctx.moveTo(x,y(h.temp));
-  });
-  ctx.stroke();
-  // === časová osa ===
-ctx.fillStyle = "#aaa";
-ctx.font = "11px Segoe UI";
-
-const steps = 4; // kolik popisků času
-for (let i = 0; i <= steps; i++) {
-  const idx = Math.round(i * (history.length - 1) / steps);
-  const h = history[idx];
-  if (!h) continue;
-
-  const x = PAD_L + idx * (W / (history.length - 1));
-  const t = new Date(h.time);
-  const label = t.toLocaleTimeString("cs-CZ", {hour:"2-digit", minute:"2-digit"});
-
-  ctx.fillText(label, x - 14, graph.height - 4);
-}
-
-}
-
-/* ===== ALARM ===== */
-function play(s){
-  if(!muted){
-    s.currentTime=0;
-    s.play();
-  }
-}
-function testAlarm(){ play(sndAlarm); }
-
-/* ===== FULLSCREEN ===== */
-fsBtn.onclick=()=>{
-  if(!document.fullscreenElement)
-    document.documentElement.requestFullscreen();
-  else
-    document.exitFullscreen();
-};
-document.addEventListener("fullscreenchange",()=>{
-  fsBtn.textContent=document.fullscreenElement?"⛶❌":"⛶";
-});
-
-/* ===== DATA LOAD ===== */
-async function load(){
-  try{
-    const d1=await (await fetch(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`)).json();
-    online.textContent="ONLINE"; online.className="online";
-    if (d1.created_at) {
-  const tsTime = new Date(d1.created_at);
-  lastUpdate.textContent =
-    "Aktualizace: " + tsTime.toLocaleTimeString("cs-CZ", {hour:"2-digit", minute:"2-digit", second:"2-digit"});
-}
-
-
-    let t=parseFloat(d1[`field${FIELD_CENTER}`]);
-    let w=parseFloat(d1[`field${FIELD_LEFT}`]);
-
-    if(!isNaN(t)){
-      gaugeCenter.refresh(t);
-      const ts = new Date(d1.created_at).getTime();
-history.push({ temp: t, time: ts });
-
-      if(history.length>MAX_HISTORY) history.shift();
-      drawGraph();
-
-      if(lastTemp!==null)
-       if(t > lastTemp){
-  trend.textContent = "⬆";
-  trend.style.color = "#ff5555";
-}
-else if(t < lastTemp){
-  trend.textContent = "⬇";
-  trend.style.color = "#4da6ff";
-}
-else{
-  trend.textContent = "➖";
-  trend.style.color = "#aaa";
-}
-
-      lastTemp=t;
-
-    status.className="";
-
-if(t < minTemp){
-  status.textContent = "NÍZKÁ TEPLOTA PŘILOŽ !!!";
-  status.classList.add("status-low", "blink-low");
-  play(sndLow);
-}
-else if(t > maxTemp){
-  status.textContent = "VYSOKÁ TEPLOTA ZKONTROLUJ !!!";
-  status.classList.add("status-high", "blink-high");
-  play(sndHigh);
-}
-else{
-  status.textContent = "IDEÁLNÍ TEPLOTA DEJ SI PANÁKA !!!";
-  status.classList.add("status-ok");
-}
-}
-    if(!isNaN(w)) gaugeLeft.refresh(w);
-
-    const d2=await (await fetch(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`)).json();
-    let o=parseFloat(d2[`field${FIELD_RIGHT}`]);
-    if(!isNaN(o)) gaugeRight.refresh(o);
-
-  }catch{
-    online.textContent="OFFLINE";
-    online.className="offline";
-  }
-}
-
-/* ===== TIMERS ===== */
-setInterval(load,15000);
-setInterval(()=>clock.textContent=new Date().toLocaleTimeString("cs-CZ"),1000);
-load();
-</script>
-
-</body>
-</html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+.historyBtns button.active{
+  background:var(--ok);
