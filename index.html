@@ -214,3 +214,636 @@ header{
 }
 .historyBtns button.active{
   background:var(--ok);
+  border-color:var(--ok);
+  color:#000;
+  font-weight:700;
+}
+
+/* ===== STATISTIKY ===== */
+.stats{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  margin-top:14px;
+}
+.stat{
+  background:#111113;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:8px 4px;
+}
+.stat b{
+  display:block;
+  font-size:22px;
+  font-variant-numeric:tabular-nums;
+}
+.stat span{ font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+
+/* ===== OVLÁDÁNÍ ===== */
+.controls{
+  display:flex;
+  justify-content:space-around;
+  align-items:center;
+  margin-top:16px;
+  gap:10px;
+}
+.limit{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:18px;
+}
+.limit .val{
+  min-width:70px;
+  font-weight:800;
+  font-size:22px;
+  font-variant-numeric:tabular-nums;
+}
+.limit.min .val{ color:var(--low); }
+.limit.max .val{ color:var(--high); }
+.limit button{ width:40px; padding:6px 0; font-size:20px; font-weight:700; }
+
+.bottom-row{
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  margin-top:14px;
+}
+
+footer{
+  text-align:center;
+  color:#555;
+  font-size:12px;
+  padding:0 0 16px;
+}
+
+/* ===== MOBIL ===== */
+@media(max-width:1000px){
+  header{ padding:12px 15px; justify-content:center; }
+  .title-left h1{ font-size:26px; }
+  .logo{ height:60px; }
+  #clock{ font-size:26px; }
+  .wrap-status{ padding:0 15px; }
+  #temp-status{ font-size:22px; padding:14px; }
+  .panel{ grid-template-columns:1fr; padding:15px; }
+  .center-card{ order:-1; }
+  .stats{ grid-template-columns:repeat(2,1fr); }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="title-left">
+    <h1>🔥 Panel udírny</h1>
+    <img src="logo-elektroservis.png" alt="Elektroservis Lukáš Zachrla" class="logo"
+         onerror="this.style.display='none'">
+  </div>
+
+  <div id="top-right">
+    <span id="online" class="chip offline">OFFLINE</span>
+    <div id="lastUpdate">–</div>
+    <span id="clock"></span>
+    <button id="muteBtn">🔔 ALARM ON</button>
+    <button id="fsBtn" title="Celá obrazovka">⛶</button>
+  </div>
+</header>
+
+<div class="wrap-status">
+  <div id="temp-status">Čekám na data…</div>
+  <div id="soundHint">🔇 Prohlížeč zablokoval zvuk – klikni sem pro povolení alarmu</div>
+</div>
+
+<div class="panel">
+
+  <!-- WIFI -->
+  <div class="card">
+    <div class="card-title">📶 WiFi signál</div>
+    <div id="gauge-left" class="side-gauge"></div>
+    <div class="sub" id="wifiText">–</div>
+  </div>
+
+  <!-- UDÍRNA -->
+  <div class="card center-card">
+    <div class="card-title">🌡️ Teplota v udírně</div>
+    <div id="gauge-center"></div>
+    <div class="trend-row">
+      <span id="trend">➖</span>
+      <span id="rate">– °C/min</span>
+    </div>
+
+    <div class="graph-wrap">
+      <canvas id="graph"></canvas>
+      <div id="tooltip"></div>
+    </div>
+
+    <div class="historyBtns">
+      <button class="active" data-min="60">1 h</button>
+      <button data-min="180">3 h</button>
+      <button data-min="360">6 h</button>
+      <button data-min="720">12 h</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><b id="stMin">–</b><span>Minimum</span></div>
+      <div class="stat"><b id="stAvg">–</b><span>Průměr</span></div>
+      <div class="stat"><b id="stMax">–</b><span>Maximum</span></div>
+      <div class="stat"><b id="stOk">–</b><span>V ideálu</span></div>
+    </div>
+
+    <div class="controls">
+      <div class="limit min">
+        MIN
+        <button onclick="changeMin(-1)">−</button>
+        <span class="val"><span id="minVal"></span>°C</span>
+        <button onclick="changeMin(1)">+</button>
+      </div>
+      <div class="limit max">
+        MAX
+        <button onclick="changeMax(-1)">−</button>
+        <span class="val"><span id="maxVal"></span>°C</span>
+        <button onclick="changeMax(1)">+</button>
+      </div>
+    </div>
+
+    <div class="bottom-row">
+      <button onclick="testAlarm()">🔊 Test alarmu</button>
+    </div>
+  </div>
+
+  <!-- VENKU -->
+  <div class="card">
+    <div class="card-title">🌤️ Venkovní teplota</div>
+    <div id="gauge-right" class="side-gauge"></div>
+    <div class="sub" id="outText">–</div>
+  </div>
+
+</div>
+
+<footer>Data: ThingSpeak · obnova každých 15 s</footer>
+
+<audio id="sound-low"   preload="auto" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+<audio id="sound-high"  preload="auto" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+<audio id="sound-alarm" preload="auto" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
+
+<script>
+/* ===== NASTAVENÍ ===== */
+const CHANNEL_LEFT_CENTER = "260804", CHANNEL_RIGHT = "231269";
+const FIELD_CENTER = 1, FIELD_LEFT = 2, FIELD_RIGHT = 4;
+const POLL_MS        = 15000;   // jak často se ptát ThingSpeaku
+const STALE_MIN      = 5;       // po kolika minutách bez nových dat hlásit výpadek
+const ALARM_REPEAT_S = 60;      // jak často opakovat zvuk alarmu, dokud trvá
+
+/* ===== PRVKY ===== */
+const $ = id => document.getElementById(id);
+const clock = $("clock"), online = $("online"), lastUpdate = $("lastUpdate");
+const muteBtn = $("muteBtn"), fsBtn = $("fsBtn");
+const minVal = $("minVal"), maxVal = $("maxVal");
+const trend = $("trend"), rateEl = $("rate");
+const statusEl = $("temp-status"), soundHint = $("soundHint");
+const sndLow = $("sound-low"), sndHigh = $("sound-high"), sndAlarm = $("sound-alarm");
+
+/* ===== ÚLOŽIŠTĚ (bezpečně) ===== */
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : v; }catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, v); }catch{} }
+};
+
+/* ===== STAV ===== */
+let minTemp = Number(store.get("minTemp", 75));
+let maxTemp = Number(store.get("maxTemp", 85));
+let muted   = store.get("muted", "0") === "1";
+let rangeMin = Number(store.get("rangeMin", 60));
+let history = [];          // [{time, temp}]
+let lastEntryId = null;
+let lastDataTime = null;
+let lastAlarmAt = 0;
+let lastState = null;
+
+/* ===== UI ===== */
+function updateUI(){
+  minVal.textContent = minTemp;
+  maxVal.textContent = maxTemp;
+  muteBtn.textContent = muted ? "🔕 ALARM OFF" : "🔔 ALARM ON";
+  muteBtn.classList.toggle("off", muted);
+  document.querySelectorAll(".historyBtns button").forEach(b =>
+    b.classList.toggle("active", Number(b.dataset.min) === rangeMin));
+}
+updateUI();
+
+/* ===== BUDÍKY ===== */
+const GAUGE_BG = "#2e2e33";
+
+const gaugeLeft = new JustGage({
+  id: "gauge-left",
+  min: 0, max: 100, value: 0,
+  label: "%",
+  pointer: false,
+  relativeGaugeSize: true,
+  gaugeColor: GAUGE_BG,
+  levelColors: ["#ff5555", "#ffcc00", "#33dd66"],
+  valueFontColor: "#ffffff",
+  labelFontColor: "#9a9aa2",
+  valueMinFontSize: 34
+});
+
+const gaugeRight = new JustGage({
+  id: "gauge-right",
+  min: -30, max: 40, value: 0,
+  decimals: 1,
+  label: "°C",
+  relativeGaugeSize: true,
+  gaugeColor: GAUGE_BG,
+  levelColors: ["#4da6ff", "#33dd66", "#ff9933"],
+  valueFontColor: "#ffffff",
+  labelFontColor: "#9a9aa2",
+  valueMinFontSize: 34
+});
+
+let gaugeCenter;
+function createCenterGauge(value = 0){
+  $("gauge-center").innerHTML = "";
+  gaugeCenter = new JustGage({
+    id: "gauge-center",
+    min: 0, max: 120, value: value,
+    decimals: 1,
+    label: "°C",
+    pointer: true,
+    pointerOptions: { toplength: 8, bottomlength: -20, bottomwidth: 6, color: "#ffffff" },
+    relativeGaugeSize: true,
+    gaugeWidthScale: 0.9,
+    gaugeColor: GAUGE_BG,
+    valueFontColor: "#ffffff",
+    labelFontColor: "#9a9aa2",
+    valueMinFontSize: 60,
+    // JustGage 1.4 chce objekt {percents, ranges}, ne pole
+    customSectors: {
+      percents: false,
+      ranges: [
+        { color: "#4da6ff", lo: -999,    hi: minTemp - 0.001 },
+        { color: "#33dd66", lo: minTemp, hi: maxTemp },
+        { color: "#ff5555", lo: maxTemp + 0.001, hi: 999 }
+      ]
+    }
+  });
+}
+createCenterGauge();
+
+/* ===== OVLÁDÁNÍ ===== */
+function changeMin(v){
+  if (minTemp + v < maxTemp){
+    minTemp += v; store.set("minTemp", minTemp);
+    updateUI(); createCenterGauge(gaugeCenter.config.value); drawGraph(); evaluate();
+  }
+}
+function changeMax(v){
+  if (maxTemp + v > minTemp){
+    maxTemp += v; store.set("maxTemp", maxTemp);
+    updateUI(); createCenterGauge(gaugeCenter.config.value); drawGraph(); evaluate();
+  }
+}
+muteBtn.onclick = () => {
+  muted = !muted;
+  store.set("muted", muted ? "1" : "0");
+  updateUI();
+  if (muted) [sndLow, sndHigh, sndAlarm].forEach(s => s.pause());
+};
+document.querySelectorAll(".historyBtns button").forEach(b => {
+  b.onclick = () => {
+    rangeMin = Number(b.dataset.min);
+    store.set("rangeMin", rangeMin);
+    updateUI();
+    loadHistory();
+  };
+});
+
+/* ===== ZVUK ===== */
+function play(s){
+  if (muted) return;
+  s.currentTime = 0;
+  const p = s.play();
+  if (p && p.catch) p.catch(() => { soundHint.style.display = "block"; });
+}
+function testAlarm(){ play(sndAlarm); }
+soundHint.onclick = () => {
+  soundHint.style.display = "none";
+  // odemknutí zvuku po kliknutí
+  [sndLow, sndHigh, sndAlarm].forEach(s => { s.muted = true; s.play().then(()=>{ s.pause(); s.muted = false; }).catch(()=>{}); });
+};
+
+/* ===== FULLSCREEN + NEZHASÍNAT DISPLEJ ===== */
+fsBtn.onclick = () => {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+  else document.exitFullscreen();
+};
+document.addEventListener("fullscreenchange", () => {
+  fsBtn.textContent = document.fullscreenElement ? "✕" : "⛶";
+});
+
+let wakeLock = null;
+async function keepAwake(){
+  try{
+    if ("wakeLock" in navigator && document.visibilityState === "visible")
+      wakeLock = await navigator.wakeLock.request("screen");
+  }catch{}
+}
+document.addEventListener("visibilitychange", keepAwake);
+document.addEventListener("click", keepAwake, { once: true });
+keepAwake();
+
+/* ===== GRAF ===== */
+const graph = $("graph"), ctx = graph.getContext("2d"), tooltip = $("tooltip");
+const PAD_L = 46, PAD_R = 10, PAD_T = 10, PAD_B = 22;
+let geo = null;   // pro tooltip
+
+function resizeGraph(){
+  const dpr = window.devicePixelRatio || 1;
+  graph.width  = graph.clientWidth  * dpr;
+  graph.height = graph.clientHeight * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawGraph();
+}
+window.addEventListener("resize", resizeGraph);
+
+function drawGraph(){
+  const Wc = graph.clientWidth, Hc = graph.clientHeight;
+  ctx.clearRect(0, 0, Wc, Hc);
+  geo = null;
+
+  if (history.length < 2){
+    ctx.fillStyle = "#666";
+    ctx.font = "14px Segoe UI";
+    ctx.textAlign = "center";
+    ctx.fillText(history.length ? "Málo dat pro graf…" : "Načítám historii…", Wc/2, Hc/2);
+    ctx.textAlign = "left";
+    return;
+  }
+
+  const temps = history.map(h => h.temp);
+  let minG = Math.floor(Math.min(minTemp - 5, ...temps) / 5) * 5;
+  let maxG = Math.ceil (Math.max(maxTemp + 5, ...temps) / 5) * 5;
+
+  const t0 = Date.now() - rangeMin * 60000;
+  const t1 = Date.now();
+  const W = Wc - PAD_L - PAD_R, H = Hc - PAD_T - PAD_B;
+  const x = t => PAD_L + (t - t0) / (t1 - t0) * W;
+  const y = v => PAD_T + H - (v - minG) / (maxG - minG) * H;
+  geo = { x, y, t0, t1, W };
+
+  // ideální pásmo
+  ctx.fillStyle = "rgba(51,221,102,0.10)";
+  ctx.fillRect(PAD_L, y(maxTemp), W, y(minTemp) - y(maxTemp));
+  ctx.setLineDash([5, 5]);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(255,85,85,.6)";
+  ctx.beginPath(); ctx.moveTo(PAD_L, y(maxTemp)); ctx.lineTo(PAD_L + W, y(maxTemp)); ctx.stroke();
+  ctx.strokeStyle = "rgba(77,166,255,.6)";
+  ctx.beginPath(); ctx.moveTo(PAD_L, y(minTemp)); ctx.lineTo(PAD_L + W, y(minTemp)); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // mřížka + popisky Y
+  ctx.strokeStyle = "rgba(255,255,255,0.08)";
+  ctx.fillStyle = "#888";
+  ctx.font = "12px Segoe UI";
+  for (let i = 0; i <= 4; i++){
+    const v = maxG - i * (maxG - minG) / 4;
+    const yy = y(v);
+    ctx.beginPath(); ctx.moveTo(PAD_L, yy); ctx.lineTo(PAD_L + W, yy); ctx.stroke();
+    ctx.fillText(v.toFixed(0) + "°C", 4, yy + 4);
+  }
+
+  // časová osa
+  ctx.fillStyle = "#888";
+  ctx.font = "11px Segoe UI";
+  ctx.textAlign = "center";
+  for (let i = 0; i <= 4; i++){
+    const t = t0 + i * (t1 - t0) / 4;
+    const lbl = new Date(t).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
+    ctx.fillText(lbl, Math.min(Math.max(x(t), PAD_L + 14), PAD_L + W - 14), Hc - 6);
+  }
+  ctx.textAlign = "left";
+
+  // plocha pod křivkou
+  const grad = ctx.createLinearGradient(0, PAD_T, 0, PAD_T + H);
+  grad.addColorStop(0, "rgba(255,122,26,0.35)");
+  grad.addColorStop(1, "rgba(255,122,26,0)");
+  ctx.beginPath();
+  history.forEach((h, i) => i ? ctx.lineTo(x(h.time), y(h.temp)) : ctx.moveTo(x(h.time), y(h.temp)));
+  ctx.lineTo(x(history[history.length - 1].time), PAD_T + H);
+  ctx.lineTo(x(history[0].time), PAD_T + H);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // křivka – barva podle pásma
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = "round";
+  for (let i = 1; i < history.length; i++){
+    const a = history[i - 1], b = history[i];
+    // mezera v datech > 10 min = nespojovat
+    if (b.time - a.time > 10 * 60000) continue;
+    ctx.strokeStyle = colorFor((a.temp + b.temp) / 2);
+    ctx.beginPath();
+    ctx.moveTo(x(a.time), y(a.temp));
+    ctx.lineTo(x(b.time), y(b.temp));
+    ctx.stroke();
+  }
+
+  // poslední bod
+  const last = history[history.length - 1];
+  ctx.fillStyle = colorFor(last.temp);
+  ctx.beginPath(); ctx.arc(x(last.time), y(last.temp), 4.5, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke();
+}
+
+function colorFor(t){
+  return t < minTemp ? "#4da6ff" : t > maxTemp ? "#ff5555" : "#33dd66";
+}
+
+// tooltip při najetí myší / prstem
+function showTip(clientX){
+  if (!geo || !history.length) return;
+  const r = graph.getBoundingClientRect();
+  const px = clientX - r.left;
+  const t = geo.t0 + (px - PAD_L) / geo.W * (geo.t1 - geo.t0);
+  let best = history[0];
+  for (const h of history) if (Math.abs(h.time - t) < Math.abs(best.time - t)) best = h;
+  tooltip.style.display = "block";
+  tooltip.style.left = geo.x(best.time) + "px";
+  tooltip.style.top  = geo.y(best.temp) + "px";
+  tooltip.innerHTML = `<b>${best.temp.toFixed(1)} °C</b> · ` +
+    new Date(best.time).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
+}
+graph.addEventListener("mousemove", e => showTip(e.clientX));
+graph.addEventListener("touchmove", e => showTip(e.touches[0].clientX), { passive: true });
+graph.addEventListener("mouseleave", () => tooltip.style.display = "none");
+graph.addEventListener("touchend",   () => tooltip.style.display = "none");
+
+/* ===== STATISTIKY + TREND ===== */
+function updateStats(){
+  if (!history.length){
+    ["stMin","stAvg","stMax","stOk"].forEach(id => $(id).textContent = "–");
+    return;
+  }
+  const t = history.map(h => h.temp);
+  const avg = t.reduce((a, b) => a + b, 0) / t.length;
+  const ok = t.filter(v => v >= minTemp && v <= maxTemp).length / t.length * 100;
+  $("stMin").textContent = Math.min(...t).toFixed(1) + "°";
+  $("stAvg").textContent = avg.toFixed(1) + "°";
+  $("stMax").textContent = Math.max(...t).toFixed(1) + "°";
+  $("stOk").textContent  = ok.toFixed(0) + " %";
+}
+
+function updateTrend(){
+  // rychlost změny z posledních ~10 minut
+  if (history.length < 2){ trend.textContent = "➖"; rateEl.textContent = "– °C/min"; return; }
+  const last = history[history.length - 1];
+  let ref = history[history.length - 2];
+  for (let i = history.length - 2; i >= 0; i--){
+    ref = history[i];
+    if (last.time - history[i].time >= 10 * 60000) break;
+  }
+  const mins = (last.time - ref.time) / 60000;
+  if (mins <= 0) return;
+  const rate = (last.temp - ref.temp) / mins;
+
+  if (rate > 0.05){ trend.textContent = "⬆"; trend.style.color = "#ff5555"; }
+  else if (rate < -0.05){ trend.textContent = "⬇"; trend.style.color = "#4da6ff"; }
+  else { trend.textContent = "➖"; trend.style.color = "#aaa"; }
+  rateEl.textContent = (rate > 0 ? "+" : "") + rate.toFixed(2) + " °C/min";
+}
+
+/* ===== VYHODNOCENÍ STAVU + ALARM ===== */
+function evaluate(){
+  const fresh = lastDataTime && (Date.now() - lastDataTime) < STALE_MIN * 60000;
+  const t = history.length ? history[history.length - 1].temp : null;
+
+  statusEl.className = "";
+  let state;
+
+  if (!fresh || t === null){
+    state = "nodata";
+    statusEl.textContent = lastDataTime
+      ? "⚠️ UDÍRNA NEPOSÍLÁ DATA – ZKONTROLUJ NODEMCU"
+      : "Čekám na data…";
+    statusEl.classList.add("status-nodata");
+  } else if (t < minTemp){
+    state = "low";
+    statusEl.textContent = "NÍZKÁ TEPLOTA PŘILOŽ !!!";
+    statusEl.classList.add("status-low", "blink-low");
+  } else if (t > maxTemp){
+    state = "high";
+    statusEl.textContent = "VYSOKÁ TEPLOTA ZKONTROLUJ !!!";
+    statusEl.classList.add("status-high", "blink-high");
+  } else {
+    state = "ok";
+    statusEl.textContent = "IDEÁLNÍ TEPLOTA DEJ SI PANÁKA !!!";
+    statusEl.classList.add("status-ok");
+  }
+
+  // zvuk: hned při změně stavu, pak jednou za ALARM_REPEAT_S
+  const now = Date.now();
+  const changed = state !== lastState;
+  if (state === "low" || state === "high" || (state === "nodata" && lastDataTime)){
+    if (changed || now - lastAlarmAt > ALARM_REPEAT_S * 1000){
+      play(state === "low" ? sndLow : state === "high" ? sndHigh : sndAlarm);
+      lastAlarmAt = now;
+    }
+  }
+  lastState = state;
+}
+
+function updateOnlineChip(){
+  if (!lastDataTime){ online.textContent = "OFFLINE"; online.className = "chip offline"; return; }
+  const ageMin = (Date.now() - lastDataTime) / 60000;
+  if (ageMin < STALE_MIN){ online.textContent = "ONLINE"; online.className = "chip online"; }
+  else { online.textContent = "BEZ DAT"; online.className = "chip stale"; }
+
+  const tStr = new Date(lastDataTime).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const ago = ageMin < 1 ? "před chvílí" : `před ${Math.floor(ageMin)} min`;
+  lastUpdate.innerHTML = `Poslední data<br><b>${tStr}</b> (${ago})`;
+}
+
+function wifiDesc(p){
+  return p >= 70 ? "výborný signál" : p >= 45 ? "dobrý signál" : p >= 25 ? "slabý signál" : "velmi slabý signál";
+}
+
+/* ===== NAČÍTÁNÍ DAT ===== */
+async function getJSON(url){
+  const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+
+async function loadHistory(){
+  try{
+    const d = await getJSON(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds.json?minutes=${rangeMin}`);
+    history = (d.feeds || [])
+      .map(f => ({ time: new Date(f.created_at).getTime(), temp: parseFloat(f[`field${FIELD_CENTER}`]), id: f.entry_id }))
+      .filter(h => !isNaN(h.temp) && h.temp > -100);   // -127 = chyba čidla
+    if (history.length) lastEntryId = Math.max(lastEntryId || 0, history[history.length - 1].id);
+  }catch(e){
+    console.warn("Historie se nenačetla", e);
+  }
+  drawGraph(); updateStats(); updateTrend();
+}
+
+async function load(){
+  try{
+    const d1 = await getJSON(`https://api.thingspeak.com/channels/${CHANNEL_LEFT_CENTER}/feeds/last.json`);
+    lastDataTime = new Date(d1.created_at).getTime();
+
+    const t = parseFloat(d1[`field${FIELD_CENTER}`]);
+    const w = parseFloat(d1[`field${FIELD_LEFT}`]);
+
+    if (!isNaN(t) && t > -100){
+      gaugeCenter.refresh(t);
+      // přidat do grafu jen opravdu nový záznam (ne každých 15 s ten samý)
+      if (d1.entry_id !== lastEntryId){
+        if (!history.length || history[history.length - 1].time !== lastDataTime)
+          history.push({ time: lastDataTime, temp: t, id: d1.entry_id });
+        lastEntryId = d1.entry_id;
+      }
+    }
+    if (!isNaN(w)){
+      gaugeLeft.refresh(w);
+      $("wifiText").textContent = wifiDesc(w);
+    }
+  }catch(e){
+    console.warn("Udírna – chyba načtení", e);
+  }
+
+  try{
+    const d2 = await getJSON(`https://api.thingspeak.com/channels/${CHANNEL_RIGHT}/feeds/last.json`);
+    const o = parseFloat(d2[`field${FIELD_RIGHT}`]);
+    if (!isNaN(o)){
+      gaugeRight.refresh(o);
+      $("outText").textContent = "měřeno " +
+        new Date(d2.created_at).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
+    }
+  }catch(e){
+    console.warn("Venkovní teplota – chyba načtení", e);
+  }
+
+  // odříznout body mimo zvolené okno
+  const cutoff = Date.now() - rangeMin * 60000;
+  history = history.filter(h => h.time >= cutoff);
+
+  updateOnlineChip();
+  drawGraph(); updateStats(); updateTrend();
+  evaluate();
+}
+
+/* ===== START ===== */
+resizeGraph();
+loadHistory().then(load);
+setInterval(load, POLL_MS);
+setInterval(() => {
+  clock.textContent = new Date().toLocaleTimeString("cs-CZ");
+}, 1000);
+clock.textContent = new Date().toLocaleTimeString("cs-CZ");
+</script>
+
+</body>
+</html>
